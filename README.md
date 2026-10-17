@@ -1,0 +1,81 @@
+# Quickfetch
+
+**Windows Search 的部分功能替代品：即使 Windows Indexer 与 Windows Search 已完全关闭，也可以快速启动应用并通过 Everything 查找文件。**
+
+Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Windows 搜索索引。
+
+## 下载与运行
+
+在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.1**：
+
+- `Quickfetch-0.0.1-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
+- `Quickfetch-0.0.1-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
+
+启动后驻留托盘，**Win + S** 打开搜索。设置中可开启开机启动；默认关闭。托盘右键退出会释放快捷键。`--background` 仅在后台启动。
+
+文件搜索可选依赖 [Everything](https://www.voidtools.com/downloads/)：支持 1.4 默认实例及 1.5a 实例，需在后台运行并启用 IPC。未检测到时显示“文件搜索不可用”及官方下载入口，应用启动仍可用。安装或启动后按 F5 重试。
+
+## 操作
+
+| 操作 | 功能 |
+| --- | --- |
+| Win + S | 打开窗口并清空当前搜索 |
+| Tab / Shift + Tab | 切换应用 / 文件模式 |
+| ↑ / ↓ | 选择结果 |
+| Enter / 双击 | 打开选中项 |
+| Shift + Enter | 在资源管理器打开所在目录并选中文件 |
+| 右键 / 菜单键 / Shift + F10 | 原生经典 Shell 右键菜单，包含可用扩展 |
+| F5 | 应用模式复核目录与图标；文件模式重新检索 |
+| Esc / 点击窗口外部 | 隐藏窗口 |
+
+文件夹按钮左侧的搜索按钮切换模式。文件列表显示名称、路径、大小和修改日期，列标题支持升降序。排序由 Everything 对全部匹配项执行；每次加载 500 项，最多保留 5,000 项，更多结果请缩小查询范围。
+
+平板姿态下自动展开数字 / 错位 QWERTY 键盘，触摸搜索框也可展开；启动键独占右侧整列。文件模式提供空格及“打开目录”。光标跟随插入位置闪烁。物理键盘输入恢复正常编辑并收起内置键盘。本应用关闭 WPF 隐式系统键盘唤起，不修改全局键盘服务。
+
+## 应用来源与排序
+
+默认通过系统 Known Folder API 定位**当前用户开始菜单**，并合并**公共开始菜单**，递归读取 `.lnk`。自选目录会保留，可关闭递归，不使用开发电脑的绝对路径。
+
+应用模式只比较英文和数字，不区分大小写。匹配优先级：完整名称 / 完整单词 → 开头连续匹配 → 空格分词首字母 → 中间连续匹配 → 最长公共连续子串 → 字符重叠。`Visual Studio Code` 可用 `vsc` / `vs`。
+
+默认列表结合频率与最近使用排序，使用权重以 7 天为半衰期衰减。有搜索词时仅调整同一匹配档位的顺序。只统计通过 Quickfetch 成功启动的应用，从首次使用开始积累，不读取其他软件的使用历史。
+
+## 缓存与后台资源
+
+- 没有周期性磁盘扫描。每次启动复核目录一次，发现离线期间的变化。
+- `FileSystemWatcher` 通知经 650ms 合并，只更新受影响文件或子目录；通知溢出及手动 F5 才整目录复核。
+- 单文件 `shortcuts-v1.json` 保存元数据与压缩 PNG 图标。未变化的图标直接恢复，不再请求 Shell；状态未变则不重写缓存。损坏、配置不匹配或过大的缓存会丢弃并重建。
+- 每次输入使用内存目录与冻结位图，不读取快捷方式。隐藏时停止光标定时器，取消文件查询并释放结果列表。
+- 不强制清空工作集，避免再次打开时额外换页。WPF / .NET 与图形资源仍占用内存；Everything 是独立进程，有自己的资源开销。
+
+数据仅保存在 `%LOCALAPPDATA%\Quickfetch`：`settings.json`、`usage.json`、`shortcuts-v1.json`。使用记录只在成功启动时写入，不保存搜索词。快捷方式目标图标变化但 `.lnk` 未修改时，可用 F5 强制刷新。详见 [性能检查记录](docs/performance.md)。
+
+## 范围与限制
+
+这是**部分替代**：应用启动与文件名 / 路径检索，不提供 Windows Search 的设置页、网页、内容索引、语义检索及全部系统集成。不会自动修改 Windows Search / Indexer 服务。
+
+Win + S 使用只拦截该组合的专用键盘钩子，安全桌面等受保护场景不保证接管。毛玻璃使用原生 Acrylic 兼容接口，不可用时回退系统材质；系统版本、设置、远程桌面和节能状态可能影响外观。右键菜单是经典 Shell 样式，区别于 Windows 11 新式飞出菜单。程序未签名。
+
+## 构建与检查
+
+需要 Windows 与 .NET 10 SDK：
+
+```powershell
+dotnet build Quickfetch -c Release
+dotnet run --project Quickfetch.Tests -c Release
+dotnet run --project Quickfetch.IconTests -c Release
+dotnet run --project Quickfetch.UiTests -c Release
+# Everything 正在运行时执行实时集成检查：
+dotnet run --project Quickfetch.UiTests -c Release -- --integration
+# 生成两种发行包及 SHA256SUMS.txt：
+pwsh -File scripts/Package.ps1
+```
+
+`Quickfetch.Core` 包含匹配、排序与 [Everything Query2 IPC 协议](https://www.voidtools.com/support/everything/sdk/ipc/)；`Quickfetch` 提供界面、Shell 集成与增量缓存。CI 不需要 Everything，不修改系统搜索设置。
+
+## Contributors
+
+- **[Pscgylotti](https://github.com/Pscgylotti)** — 需求、设计决策、设备验证与维护。
+- **Codex (OpenAI)** — AI 贡献者，参与实现、重构、检查及发布准备；发布经维护者授权。
+
+详见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。MIT License。
