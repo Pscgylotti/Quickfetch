@@ -23,6 +23,7 @@ internal static class GestureActionRunner
             {
                 "CTRL" or "CONTROL" => (ushort)0x11, "ALT" => 0x12, "SHIFT" => 0x10,
                 "WIN" or "WINDOWS" => 0x5B,
+                "ESC" or "ESCAPE" => 0x1B,
                 _ => ConvertKey(part)
             };
             if (key == 0 || result.Contains(key)) throw new ArgumentException("快捷键无效或包含重复按键。");
@@ -31,8 +32,8 @@ internal static class GestureActionRunner
         bool Modifier(ushort k) => k is 0x11 or 0x12 or 0x10 or 0x5B;
         if (result.Count(k => !Modifier(k)) != 1 || Modifier(result[^1]) || result.Take(result.Count - 1).Any(k => !Modifier(k)))
             throw new ArgumentException("快捷键应由修饰键加一个主键组成，例如 Win + S。");
-        if (result.Count == 1 && result[0] is < 0x70 or > 0x87)
-            throw new ArgumentException("单键快捷键只允许 F1–F24；其他按键请搭配 Ctrl / Alt / Shift / Win。");
+        if (result.Count == 1 && result[0] != 0x1B && result[0] is < 0x70 or > 0x87)
+            throw new ArgumentException("单键快捷键允许 Esc 或 F1–F24；其他按键请搭配 Ctrl / Alt / Shift / Win。");
         return result.ToArray();
     }
     private static ushort ConvertKey(string text)

@@ -89,7 +89,7 @@ public partial class GestureSettingsWindow : Window
                 try { GestureActionRunner.ParseShortcut(candidate); _shortcut.Text = candidate; } catch (ArgumentException) { }
             };
             _keys.Children.Add(_shortcut);
-            var presets = new ComboBox { ItemsSource = new[] { "选择常用快捷键…", "Win + S", "Win + E", "Win + D", "Win + Tab", "Alt + Tab", "Alt + F4", "Ctrl + Shift + Escape", "Win + Ctrl + Left", "Win + Ctrl + Right", "Win + A", "Win + N" }, SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0) };
+            var presets = new ComboBox { ItemsSource = new[] { "选择常用快捷键…", "Esc", "Win + S", "Win + E", "Win + D", "Win + Tab", "Alt + Tab", "Alt + F4", "Ctrl + Shift + Escape", "Win + Ctrl + Left", "Win + Ctrl + Right", "Win + A", "Win + N" }, SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0) };
             presets.SelectionChanged += (_, _) => { if (presets.SelectedIndex > 0) _shortcut.Text = (string)presets.SelectedItem; };
             _keys.Children.Add(presets);
             _program.Text = action.Program; _arguments.Text = action.Arguments;

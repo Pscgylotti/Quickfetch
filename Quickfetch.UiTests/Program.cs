@@ -28,9 +28,11 @@ internal static class Program
         app.InitializeComponent();
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
         var window = new MainWindow();
+        window.SetKeyboardPreference(true, showKeyboard: false);
         Check(GestureActionRunner.ParseShortcut("Ctrl + Alt + T").SequenceEqual(new ushort[] { 0x11, 0x12, 0x54 }), "Shortcut parser must preserve modifier/key order.");
         Check(GestureActionRunner.ParseShortcut("Win + S").SequenceEqual(new ushort[] { 0x5B, 0x53 }), "Win+S must be available as a launcher gesture.");
         Check(GestureActionRunner.ParseShortcut("F12").Single() == 0x7B, "Function keys must be supported without a modifier.");
+        Check(GestureActionRunner.ParseShortcut("Esc").Single() == 0x1B && GestureActionRunner.ParseShortcut("Escape").Single() == 0x1B, "Standalone Esc and Escape must be supported as gesture actions.");
         foreach (var invalidShortcut in new[] { "", "A", "Ctrl", "Ctrl + Ctrl + A", "Ctrl + A + B", "NoSuchKey", "A + Ctrl" })
         {
             bool rejected = false;
@@ -167,6 +169,30 @@ internal static class Program
         query.Select(6, 0);
         window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         Check(Canvas.GetLeft(caretLine) > middle, "The custom caret must follow the actual insertion position.");
+        query.Text = "grata"; query.UpdateLayout();
+        var lastStart = query.GetRectFromCharacterIndex(4);
+        var lastEnd = query.GetRectFromCharacterIndex(5);
+        var textY = lastEnd.Top + lastEnd.Height / 2;
+        Check(window.TouchCaretIndex(new Point(lastEnd.X + 80, textY)) == 5, "Touching blank space beyond the final character must select the end of text.");
+        Check(window.TouchCaretIndex(new Point(lastStart.X * 0.25 + lastEnd.X * 0.75, textY)) == 5, "The right half of the final character must map to its trailing insertion edge.");
+        Check(window.TouchCaretIndex(new Point(lastStart.X * 0.75 + lastEnd.X * 0.25, textY)) == 4, "The left half of a character must map to its leading insertion edge.");
+        Check(window.TouchCaretIndex(new Point(-50, textY)) == 0, "Touching before the text must select the start.");
+        Check(SystemTouchKeyboard.Probe(nativeHandle, out var paneError), "The documented desktop InputPane interface must activate without showing a keyboard: " + paneError);
+        int systemShows = 0, systemHides = 0;
+        window.SystemKeyboardRequest = show => { if (show) systemShows++; else systemHides++; return true; };
+        window.SetKeyboardPreference(false);
+        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Check(keyboard.Visibility == Visibility.Collapsed && !query.IsReadOnly && query.Focusable && query.IsTabStop, "System-keyboard mode must restore normal editing and never show the built-in keyboard.");
+        Check(systemShows == 1 && caret.Visibility == Visibility.Collapsed, "System-keyboard mode must request the system pane and use the native caret.");
+        if (args.Contains("--system-keyboard"))
+        {
+            try { Check(SystemTouchKeyboard.Request(nativeHandle, true, out var showError), "Windows must accept an explicit system touch-keyboard show request: " + showError); }
+            finally { SystemTouchKeyboard.Request(nativeHandle, false, out _); }
+        }
+        window.SetKeyboardPreference(true);
+        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Check(systemHides == 1 && keyboard.Visibility == Visibility.Visible && query.IsReadOnly, "Switching back must hide the owned system pane and restore the built-in keyboard.");
+        window.SystemKeyboardRequest = null;
         window.Hide(); choosing.SetValue(window, false);
         query.Text = "";
         if (args.Contains("--integration"))

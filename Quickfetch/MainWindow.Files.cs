@@ -39,6 +39,7 @@ public partial class MainWindow
         {
             if (!IsVisible)
             {
+                HideSystemKeyboard();
                 _caretBlink.Stop(); _fileTimer.Stop(); _fileCancellation?.Cancel(); _fileVersion++;
                 Results.ItemsSource = Array.Empty<ILauncherItem>(); _fileLimit = 500;
             }

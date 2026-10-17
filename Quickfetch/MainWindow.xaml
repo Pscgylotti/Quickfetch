@@ -48,7 +48,7 @@
       <Border x:Name="SettingsPanel" Grid.Row="2" Visibility="Collapsed" Background="{DynamicResource Panel}" CornerRadius="10" Padding="12" Margin="0,0,0,10">
         <StackPanel>
           <DockPanel><Button DockPanel.Dock="Right" Content="选择文件夹" Click="ChooseFolder_Click"/><TextBlock x:Name="FolderLabel" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,8,0"/></DockPanel>
-          <StackPanel Orientation="Horizontal" Margin="0,8,0,0"><CheckBox x:Name="RecursiveCheck" Content="包含子文件夹" Click="Recursive_Click" Margin="0,0,22,0"/><CheckBox x:Name="AutostartCheck" Content="开机启动" Click="Autostart_Click"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0"><CheckBox x:Name="RecursiveCheck" Content="包含子文件夹" Click="Recursive_Click" Margin="0,0,22,0"/><CheckBox x:Name="AutostartCheck" Content="开机启动" Click="Autostart_Click" Margin="0,0,22,0"/><CheckBox x:Name="BuiltInKeyboardCheck" Content="使用 Quickfetch 内置键盘" Click="BuiltInKeyboard_Click" ToolTip="取消勾选后使用 Windows 系统触摸键盘"/></StackPanel>
           <TextBlock Text="仅启动此文件夹中的 .lnk；右键托盘图标可退出程序。" FontSize="10" Foreground="{DynamicResource Muted}" Margin="0,10,0,0"/>
           <DockPanel Margin="0,8,0,0"><Button Content="触屏手势…" Click="Gestures_Click" DockPanel.Dock="Right" MinHeight="42"/><TextBlock x:Name="GestureStatus" Text="全局触屏手势" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap"/></DockPanel>
         </StackPanel>

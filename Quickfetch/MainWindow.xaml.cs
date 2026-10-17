@@ -57,6 +57,7 @@ public partial class MainWindow : Window
         FolderLabel.ToolTip = _settings.Folder;
         RecursiveCheck.IsChecked = _settings.IncludeSubfolders;
         AutostartCheck.IsChecked = Settings.AutoStart;
+        BuiltInKeyboardCheck.IsChecked = _settings.UseBuiltInKeyboard;
         QuickKeyboard.KeyPressed += KeyboardKeyPressed;
         Loaded += (_, _) => ScheduleBackdrop();
         Activated += (_, _) => ScheduleBackdrop();
@@ -295,7 +296,7 @@ public partial class MainWindow : Window
     {
         // ReadOnly alone still allows WPF/Windows keyboard invocation on edit focus.
         // In touch mode keep focus on a non-edit surface; only our keys edit the query.
-        _touchInput = !physicalKeyboard && (visible || TabletPosture.IsTablet);
+        _touchInput = _settings.UseBuiltInKeyboard && !physicalKeyboard && (visible || TabletPosture.IsTablet);
         Query.IsReadOnly = _touchInput;
         Query.Focusable = !_touchInput;
         Query.IsTabStop = !_touchInput;
@@ -305,14 +306,17 @@ public partial class MainWindow : Window
             FocusManager.SetFocusedElement(this, LauncherSurface);
             if (IsVisible) Keyboard.Focus(LauncherSurface);
         }
-        QuickKeyboard.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        var builtInVisible = visible && _settings.UseBuiltInKeyboard;
+        QuickKeyboard.Visibility = builtInVisible ? Visibility.Visible : Visibility.Collapsed;
+        KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? "展开或收起触屏键盘" : "打开 Windows 系统触摸键盘";
         var center = Left + Width / 2;
         Width = Math.Min(_fileMode ? 980 : 660, SystemParameters.WorkArea.Width - 24);
         if (IsVisible) Left = Math.Clamp(center - Width / 2, SystemParameters.WorkArea.Left + 12, SystemParameters.WorkArea.Right - Width - 12);
-        Height = Math.Min(visible ? 750 : 490, SystemParameters.WorkArea.Height - 24);
+        Height = Math.Min(builtInVisible ? 750 : 490, SystemParameters.WorkArea.Height - 24);
         if (IsVisible) Top = Math.Clamp(Top, SystemParameters.WorkArea.Top + 12, SystemParameters.WorkArea.Bottom - Height - 12);
         ScheduleBackdrop();
         ScheduleCaret();
+        if (!_settings.UseBuiltInKeyboard && visible && !physicalKeyboard) RequestSystemKeyboard();
     }
     private void FocusSearch()
     {
@@ -321,23 +325,35 @@ public partial class MainWindow : Window
     }
     private void Keyboard_Click(object sender, RoutedEventArgs e)
     {
-        SetTouchKeyboard(QuickKeyboard.Visibility != Visibility.Visible);
+        SetTouchKeyboard(!_settings.UseBuiltInKeyboard || QuickKeyboard.Visibility != Visibility.Visible);
         FocusSearch();
     }
     private void FocusTouchQuery(Point point)
     {
         SetTouchKeyboard(true);
         FocusSearch();
-        var position = Query.GetCharacterIndexFromPoint(point, true);
-        Query.Select(Math.Max(0, position), 0);
+        Query.Select(TouchCaretIndex(point), 0);
     }
-    private void Query_TouchDown(object sender, TouchEventArgs e) { FocusTouchQuery(e.GetTouchPoint(Query).Position); e.Handled = true; }
+    private void Query_TouchDown(object sender, TouchEventArgs e)
+    {
+        if (!_settings.UseBuiltInKeyboard) { SetTouchKeyboard(true); return; }
+        FocusTouchQuery(e.GetTouchPoint(Query).Position); e.Handled = true;
+    }
     private void Query_StylusDown(object sender, StylusDownEventArgs e)
     {
-        if (e.StylusDevice.TabletDevice.Type == TabletDeviceType.Touch) { FocusTouchQuery(e.GetPosition(Query)); e.Handled = true; }
+        if (e.StylusDevice.TabletDevice.Type == TabletDeviceType.Touch)
+        {
+            if (!_settings.UseBuiltInKeyboard) { SetTouchKeyboard(true); return; }
+            FocusTouchQuery(e.GetPosition(Query)); e.Handled = true;
+        }
     }
     private void Query_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (!_settings.UseBuiltInKeyboard)
+        {
+            SetTouchKeyboard(e.StylusDevice is not null || TabletPosture.IsTablet);
+            return;
+        }
         if (_touchInput || e.StylusDevice is not null || TabletPosture.IsTablet)
         { FocusTouchQuery(e.GetPosition(Query)); e.Handled = true; }
         else SetTouchKeyboard(false, physicalKeyboard: true);
@@ -472,6 +488,7 @@ public partial class MainWindow : Window
     {
         if (_disposed) return;
         _disposed = true;
+        HideSystemKeyboard();
         ++_gestureGeneration; _gestures?.Dispose(); _gestures = null;
         _fileTimer.Stop(); _caretBlink.Stop(); _fileCancellation?.Cancel(); _everything?.Dispose();
         foreach (var watcher in _watchers) watcher.Dispose(); _watchers.Clear();
