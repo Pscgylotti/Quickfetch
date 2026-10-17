@@ -111,9 +111,10 @@ public partial class MainWindow
             UpdateSortLabels();
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) when (ex is IOException or TimeoutException or InvalidOperationException)
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex))
         {
             if (_disposed || !_fileMode || version != _fileVersion) return;
+            AppDiagnostics.Current.Fault("file-search", ex);
             Results.ItemsSource = Array.Empty<FileItem>(); EmptyMessage.Text = ex.Message; EmptyMessage.Visibility = Visibility.Visible;
             Status.Text = "Everything 未就绪";
             if (!EverythingClient.IsAvailable) RefreshEverythingAvailability();

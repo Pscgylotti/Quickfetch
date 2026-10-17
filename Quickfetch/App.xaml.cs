@@ -14,6 +14,8 @@ public partial class App : Application
     private Mutex? _instance;
     private EventWaitHandle? _showSignal;
     private RegisteredWaitHandle? _showRegistration;
+    private string _exitReason = "dispatcher-exit-without-explicit-request";
+    internal void ExitFromTray() { _exitReason = "tray-exit"; Shutdown(); }
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -26,6 +28,14 @@ public partial class App : Application
             Shutdown(); return;
         }
         _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\Quickfetch.Show." + id);
+        AppDiagnostics.Current.Start();
+        DispatcherUnhandledException += (_, args) => AppDiagnostics.Current.Fault("ui-unhandled", args.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception exception) AppDiagnostics.Current.Fault("process-unhandled", exception);
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) => { AppDiagnostics.Current.Fault("unobserved-task", args.Exception); args.SetObserved(); };
+        SessionEnding += (_, args) => { _exitReason = "windows-session-ending:" + args.ReasonSessionEnding; AppDiagnostics.Current.Write("session-ending", args.ReasonSessionEnding.ToString()); };
         SetTheme();
         var window = new MainWindow();
         MainWindow = window;
@@ -50,6 +60,7 @@ public partial class App : Application
         (MainWindow as MainWindow)?.DisposeLauncher();
         _showSignal?.Dispose();
         if (_instance is not null) { try { _instance.ReleaseMutex(); } catch (ApplicationException) { } _instance.Dispose(); }
+        if (!SuppressLauncherStartup) AppDiagnostics.Current.Stop(_exitReason, e.ApplicationExitCode);
         base.OnExit(e);
     }
 }

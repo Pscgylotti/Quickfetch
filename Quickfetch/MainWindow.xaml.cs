@@ -79,7 +79,7 @@ public partial class MainWindow : Window
         menu.Items.Add("刷新快捷方式", null, (_, _) => Dispatcher.BeginInvoke(async () => await RefreshCatalog(true)));
         menu.Items.Add("触屏手势设置", null, (_, _) => Dispatcher.BeginInvoke(OpenGestureSettings));
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("退出", null, (_, _) => Dispatcher.BeginInvoke(() => Application.Current.Shutdown()));
+        menu.Items.Add("退出", null, (_, _) => Dispatcher.BeginInvoke(() => ((App)Application.Current).ExitFromTray()));
         using var personalize = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         var darkTray = personalize?.GetValue("SystemUsesLightTheme") is int light && light == 0;
         _trayIcon = TrayIconFactory.Create(darkTray);
@@ -199,9 +199,10 @@ public partial class MainWindow : Window
             try { await Task.Run(() => _diskCache.Save(roots, recursive, _index.Items, _iconCache)); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* In-memory operation remains available when cache storage is read-only. */ }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex))
         {
             if (_disposed || version != _loadVersion) return;
+            AppDiagnostics.Current.Fault("shortcut-refresh", ex);
             _loading = false;
             _entries = Array.Empty<ShortcutEntry>();
             _icons = new Dictionary<string, System.Windows.Media.ImageSource?>();

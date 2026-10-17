@@ -58,6 +58,14 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 数据仅保存在 `%LOCALAPPDATA%\Quickfetch`：`settings.json`、`usage.json`、`shortcuts-v1.json`。使用记录只在成功启动时写入，不保存搜索词。快捷方式目标图标变化但 `.lnk` 未修改时，可用 F5 强制刷新。详见 [性能检查记录](docs/performance.md)。
 
+## 退出问题与诊断
+
+`%LOCALAPPDATA%\Quickfetch\diagnostics` 保存本机启动/退出原因与异常记录，不上传。`lifecycle.log` 与其 `.old` 备份各上限约 256 KiB；`running.json` 标记未完成的会话。只在启动、退出或异常时写入，没有日志轮询；不记录正常按键、触摸轨迹或搜索历史，错误信息中可能包含相关本地路径。
+
+日志可以区分托盘主动退出、Windows 结束会话、已捕获异常，以及上次没有正常结束记录。仅有未完成标记不能区分任务管理器终止、更新替换、断电或崩溃。未知 UI / 运行时致命错误会记录后保留原有终止行为；可恢复的快捷方式刷新、文件搜索与触控回调错误在各自边界处理。日志不可写也不会因此退出。
+
+exe 与窗口已嵌入搜索/闪电图标，包含 16–256 像素多尺寸。图标源文件为 `Quickfetch/Assets/Quickfetch.svg`，运行 `scripts/New-AppIcon.ps1` 可重新生成 ICO。
+
 ## 范围与限制
 
 这是**部分替代**：应用启动与文件名 / 路径检索，不提供 Windows Search 的设置页、网页、内容索引、语义检索及全部系统集成。不会自动修改 Windows Search / Indexer 服务。

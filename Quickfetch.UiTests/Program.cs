@@ -26,8 +26,10 @@ internal static class Program
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); passed++; }
         var app = new App { SuppressLauncherStartup = true };
         app.InitializeComponent();
+        DiagnosticsChecks.Run(Check);
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
         var window = new MainWindow();
+        Check(window.Icon is not null, "The launcher must expose the embedded Quickfetch window icon.");
         window.SetKeyboardPreference(true, showKeyboard: false);
         Check(GestureActionRunner.ParseShortcut("Ctrl + Alt + T").SequenceEqual(new ushort[] { 0x11, 0x12, 0x54 }), "Shortcut parser must preserve modifier/key order.");
         Check(GestureActionRunner.ParseShortcut("Win + S").SequenceEqual(new ushort[] { 0x5B, 0x53 }), "Win+S must be available as a launcher gesture.");
@@ -40,6 +42,7 @@ internal static class Program
             Check(rejected, "Invalid gesture shortcuts must be rejected: " + invalidShortcut);
         }
         var gestureDialog = new GestureSettingsWindow(new Quickfetch.Core.GestureSettings());
+        Check(gestureDialog.Icon is not null, "The settings window must use the same embedded application icon.");
         Check(((CheckBox)gestureDialog.FindName("EnabledCheck")).IsChecked == true && ((CheckBox)gestureDialog.FindName("RightClickCheck")).IsChecked == false, "Gesture dialog must reflect global-on/right-click-opt-in defaults.");
         Check(((StackPanel)gestureDialog.FindName("Editors")).Children.Count == 4, "All four global edge gestures must have independent editors.");
         var invalidAction = new Quickfetch.Core.GestureAction { Kind = Quickfetch.Core.GestureActionKind.Program, Program = "missing.exe" };

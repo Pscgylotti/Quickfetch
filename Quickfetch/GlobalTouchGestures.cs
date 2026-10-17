@@ -16,16 +16,19 @@ internal sealed class GlobalTouchGestures : IDisposable
     private readonly GestureSettings _settings;
     private readonly Action<GestureMatch, int, int> _matched;
     private readonly Action<string> _status;
+    private readonly AppDiagnostics _diagnostics;
     private readonly Thread _thread;
     private readonly Dictionary<IntPtr, Device?> _devices = new();
     private uint _threadId;
     private IntPtr _buffer;
     private uint _capacity;
     private ScreenMapping? _mapping;
+    private bool _reportFailureLogged;
     private int _disposed;
-    internal GlobalTouchGestures(GestureSettings settings, Action<GestureMatch, int, int> matched, Action<string> status)
+    internal GlobalTouchGestures(GestureSettings settings, Action<GestureMatch, int, int> matched, Action<string> status, AppDiagnostics? diagnostics = null)
     {
         _settings = settings; _matched = matched; _status = status;
+        _diagnostics = diagnostics ?? AppDiagnostics.Current;
         _thread = new Thread(Run) { Name = "Quickfetch touchscreen", IsBackground = true };
         _thread.SetApartmentState(ApartmentState.STA); _thread.Start();
     }
@@ -40,17 +43,22 @@ internal sealed class GlobalTouchGestures : IDisposable
             using var source = new InputWindow(this);
             var registration = new[] { new RawDevice { Page = 0x0D, Usage = 4, Flags = 0x2100, Target = source.Handle } };
             if (!RegisterRawInputDevices(registration, 1, (uint)Marshal.SizeOf<RawDevice>())) throw new Win32Exception(Marshal.GetLastWin32Error());
-            _status("全局监听已开启 · 等待触屏输入");
+            ReportStatus("全局监听已开启 · 等待触屏输入");
             if (Volatile.Read(ref _disposed) == 0) Forms.Application.Run();
             registration[0].Flags = 1; registration[0].Target = IntPtr.Zero;
             RegisterRawInputDevices(registration, 1, (uint)Marshal.SizeOf<RawDevice>());
         }
-        catch (Exception ex) { _status("触屏监听不可用：" + ex.Message); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { _diagnostics.Fault("touch-listener", ex); ReportStatus("触屏监听不可用：" + ex.Message); }
         finally
         {
             foreach (var device in _devices.Values) device?.Dispose(); _devices.Clear();
             if (_buffer != IntPtr.Zero) Marshal.FreeHGlobal(_buffer);
         }
+    }
+    private void ReportStatus(string status)
+    {
+        try { _status(status); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { _diagnostics.Fault("touch-status-callback", ex); }
     }
     private sealed class InputWindow : Forms.NativeWindow, IDisposable
     {
@@ -63,7 +71,14 @@ internal sealed class GlobalTouchGestures : IDisposable
         protected override void WndProc(ref Forms.Message message)
         {
             bool handled = false;
-            _owner.Messages(message.HWnd, message.Msg, message.WParam, message.LParam, ref handled);
+            try { _owner.Messages(message.HWnd, message.Msg, message.WParam, message.LParam, ref handled); }
+            catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex))
+            {
+                // A failing optional listener must not escape through a native callback and terminate the launcher.
+                _owner._diagnostics.Fault("touch-native-callback", ex);
+                _owner.ReportStatus("触屏监听已停止：" + ex.Message);
+                PostThreadMessage(_owner._threadId, 0x12, IntPtr.Zero, IntPtr.Zero);
+            }
             base.WndProc(ref message);
         }
         public void Dispose() => DestroyHandle();
@@ -84,7 +99,12 @@ internal sealed class GlobalTouchGestures : IDisposable
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OverflowException)
         {
             foreach (var device in _devices.Values) device?.Reset();
-            _status("触屏数据无法解析：" + ex.Message);
+            if (!_reportFailureLogged)
+            {
+                _reportFailureLogged = true;
+                _diagnostics.Fault("touch-report", ex);
+                ReportStatus("触屏数据无法解析：" + ex.Message);
+            }
         }
         // Leave unhandled so DefWindowProc performs foreground WM_INPUT cleanup.
         return IntPtr.Zero;
@@ -99,7 +119,7 @@ internal sealed class GlobalTouchGestures : IDisposable
         if (!_devices.TryGetValue(handle, out var device))
         {
             device = Device.Open(handle); _devices.Add(handle, device);
-            _status(device is null ? "此触屏的 HID 格式暂不支持" : "全局监听中 · 已识别触屏");
+            ReportStatus(device is null ? "此触屏的 HID 格式暂不支持" : "全局监听中 · 已识别触屏");
         }
         if (device is null) return;
         var length = Marshal.ReadInt32(_buffer, (int)header); var count = Marshal.ReadInt32(_buffer, (int)header + 4);
