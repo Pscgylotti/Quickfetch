@@ -14,6 +14,7 @@ public partial class App : Application
     private Mutex? _instance;
     private EventWaitHandle? _showSignal;
     private RegisteredWaitHandle? _showRegistration;
+    private PowerLifecycle? _power;
     private string _exitReason = "dispatcher-exit-without-explicit-request";
     internal void ExitFromTray() { _exitReason = "tray-exit"; Shutdown(); }
     protected override void OnStartup(StartupEventArgs e)
@@ -42,6 +43,11 @@ public partial class App : Application
         _showRegistration = ThreadPool.RegisterWaitForSingleObject(_showSignal,
             (_, _) => { if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(window.ShowLauncher); }, null, Timeout.Infinite, false);
         window.InitializeLauncher(Array.Exists(e.Args, arg => arg == "--background"));
+        try { _power = new PowerLifecycle(action =>
+        {
+            if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(action);
+        }, window.SuspendBackgroundInput, window.ResumeBackgroundInput); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("power-notifications", ex); }
     }
 
     private void SetTheme()
@@ -57,6 +63,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _showRegistration?.Unregister(null);
+        _power?.Dispose();
         (MainWindow as MainWindow)?.DisposeLauncher();
         _showSignal?.Dispose();
         if (_instance is not null) { try { _instance.ReleaseMutex(); } catch (ApplicationException) { } _instance.Dispose(); }

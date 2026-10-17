@@ -9,13 +9,14 @@ public partial class MainWindow
 {
     private GlobalTouchGestures? _gestures;
     private int _gestureGeneration;
+    private bool _gestureSettingsOpen;
     private void ConfigureGestures()
     {
         var generation = ++_gestureGeneration;
         _gestures?.Dispose(); _gestures = null;
         _settings.Gestures ??= new();
         GestureStatus.Text = _settings.Gestures.Enabled ? "全局监听准备中…" : "全局触屏手势已关闭";
-        if (!_settings.Gestures.Enabled || _disposed) return;
+        if (!_settings.Gestures.Enabled || _disposed || _inputSuspended || _gestureSettingsOpen) return;
         // The listener owns an immutable snapshot; changes replace it rather than race touch frames.
         var snapshot = JsonSerializer.Deserialize<GestureSettings>(JsonSerializer.Serialize(_settings.Gestures))!;
         _gestures = new GlobalTouchGestures(snapshot, (match, x, y) =>
@@ -47,7 +48,7 @@ public partial class MainWindow
     private void OpenGestureSettings()
     {
         if (_choosingFolder || _disposed) return;
-        ShowLauncher(); _choosingFolder = true;
+        ShowLauncher(); _choosingFolder = true; _gestureSettingsOpen = true;
         ++_gestureGeneration; _gestures?.Dispose(); _gestures = null;
         try
         {
@@ -61,6 +62,6 @@ public partial class MainWindow
             }
         }
         catch (Exception ex) { SetMessage(ex.Message); }
-        finally { _choosingFolder = false; ConfigureGestures(); FocusSearch(); }
+        finally { _choosingFolder = false; _gestureSettingsOpen = false; ConfigureGestures(); FocusSearch(); }
     }
 }

@@ -27,6 +27,7 @@ internal static class Program
         var app = new App { SuppressLauncherStartup = true };
         app.InitializeComponent();
         DiagnosticsChecks.Run(Check);
+        PowerLifecycleChecks.Run(Check);
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
         var window = new MainWindow();
         Check(window.Icon is not null, "The launcher must expose the embedded Quickfetch window icon.");
