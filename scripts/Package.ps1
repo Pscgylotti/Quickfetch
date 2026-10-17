@@ -1,4 +1,4 @@
-param([string]$Version = '0.0.1')
+param([string]$Version = '0.0.1', [string]$RuntimeVersion = '10.0.13')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $outputRoot = Join-Path $projectRoot 'artifacts'
@@ -6,7 +6,8 @@ New-Item -ItemType Directory -Force $outputRoot | Out-Null
 foreach ($flavor in @('framework-dependent', 'portable')) {
     $publishFolder = Join-Path $outputRoot ('publish-' + $flavor)
     $selfContained = if ($flavor -eq 'portable') { 'true' } else { 'false' }
-    dotnet publish (Join-Path $projectRoot 'Quickfetch/Quickfetch.csproj') -c Release -r win-x64 --self-contained $selfContained -p:IncludeNativeLibrariesForSelfExtract=true -o $publishFolder
+    $runtimeArguments = if ($flavor -eq 'portable') { @("-p:RuntimeFrameworkVersion=$RuntimeVersion") } else { @() }
+    dotnet publish (Join-Path $projectRoot 'Quickfetch/Quickfetch.csproj') -c Release -r win-x64 --self-contained $selfContained -p:IncludeNativeLibrariesForSelfExtract=true @runtimeArguments -o $publishFolder
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $flavor" }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md'), (Join-Path $projectRoot 'LICENSE'), (Join-Path $projectRoot 'CONTRIBUTORS.md') -Destination $publishFolder
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs') -Destination $publishFolder -Recurse -Force

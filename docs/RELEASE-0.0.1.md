@@ -12,7 +12,7 @@ Windows Search 的部分功能替代品。在 Windows Indexer 与 Windows Search
 
 ## 下载
 
-- **portable**：包含 .NET 运行时，Windows 11 x64，解压运行。
+- **portable**：包含 .NET 10.0.13 运行时，Windows 11 x64，解压运行。
 - **framework-dependent**：较小，需要 .NET 10 Desktop Runtime x64。
 - 使用 `SHA256SUMS.txt` 校验发行包。
 
