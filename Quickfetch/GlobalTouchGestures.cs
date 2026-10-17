@@ -4,8 +4,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Windows.Interop;
-using System.Windows.Threading;
 using Quickfetch.Core;
 using Forms = System.Windows.Forms;
 
@@ -20,8 +18,7 @@ internal sealed class GlobalTouchGestures : IDisposable
     private readonly Action<string> _status;
     private readonly Thread _thread;
     private readonly Dictionary<IntPtr, Device?> _devices = new();
-    private Dispatcher? _dispatcher;
-    private HwndSource? _source;
+    private uint _threadId;
     private IntPtr _buffer;
     private uint _capacity;
     private ScreenMapping? _mapping;
@@ -36,14 +33,15 @@ internal sealed class GlobalTouchGestures : IDisposable
     {
         try
         {
-            _dispatcher = Dispatcher.CurrentDispatcher;
+            _threadId = GetCurrentThreadId();
+            PeekMessage(out _, IntPtr.Zero, 0, 0, 0); // Ensure the stop message can be queued even during startup.
             // An invisible top-level window receives display/settings broadcasts; message-only windows do not.
-            using var source = new HwndSource(new HwndSourceParameters("Quickfetch touch input") { WindowStyle = 0, ExtendedWindowStyle = 0x08000080 });
-            _source = source; source.AddHook(Messages);
+            // NativeWindow avoids creating a second WPF rendering context / graphics resources.
+            using var source = new InputWindow(this);
             var registration = new[] { new RawDevice { Page = 0x0D, Usage = 4, Flags = 0x2100, Target = source.Handle } };
             if (!RegisterRawInputDevices(registration, 1, (uint)Marshal.SizeOf<RawDevice>())) throw new Win32Exception(Marshal.GetLastWin32Error());
             _status("全局监听已开启 · 等待触屏输入");
-            if (Volatile.Read(ref _disposed) == 0) Dispatcher.Run();
+            if (Volatile.Read(ref _disposed) == 0) Forms.Application.Run();
             registration[0].Flags = 1; registration[0].Target = IntPtr.Zero;
             RegisterRawInputDevices(registration, 1, (uint)Marshal.SizeOf<RawDevice>());
         }
@@ -52,8 +50,23 @@ internal sealed class GlobalTouchGestures : IDisposable
         {
             foreach (var device in _devices.Values) device?.Dispose(); _devices.Clear();
             if (_buffer != IntPtr.Zero) Marshal.FreeHGlobal(_buffer);
-            _source = null;
         }
+    }
+    private sealed class InputWindow : Forms.NativeWindow, IDisposable
+    {
+        private readonly GlobalTouchGestures _owner;
+        internal InputWindow(GlobalTouchGestures owner)
+        {
+            _owner = owner;
+            CreateHandle(new Forms.CreateParams { Caption = "Quickfetch touch input", Style = 0, ExStyle = 0x08000080 });
+        }
+        protected override void WndProc(ref Forms.Message message)
+        {
+            bool handled = false;
+            _owner.Messages(message.HWnd, message.Msg, message.WParam, message.LParam, ref handled);
+            base.WndProc(ref message);
+        }
+        public void Dispose() => DestroyHandle();
     }
     private IntPtr Messages(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -128,7 +141,7 @@ internal sealed class GlobalTouchGestures : IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        try { _dispatcher?.BeginInvokeShutdown(DispatcherPriority.Send); } catch (InvalidOperationException) { }
+        if (_threadId != 0) PostThreadMessage(_threadId, 0x12, IntPtr.Zero, IntPtr.Zero);
         if (Thread.CurrentThread != _thread) _thread.Join(2000);
     }
     internal static string ProbeDevices()
@@ -260,6 +273,7 @@ internal sealed class GlobalTouchGestures : IDisposable
     [StructLayout(LayoutKind.Sequential)] private struct RawDevice { public ushort Page, Usage; public uint Flags; public IntPtr Target; }
     [StructLayout(LayoutKind.Sequential)] private struct RawDeviceList { public IntPtr Handle; public uint Type; }
     [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeMessage { public IntPtr Hwnd; public uint Id; public UIntPtr WParam; public IntPtr LParam; public uint Time; public NativePoint Point; public uint Private; }
     [DllImport("user32.dll", SetLastError = true)] private static extern bool RegisterRawInputDevices(RawDevice[] devices, uint count, uint size);
     [DllImport("user32.dll", SetLastError = true)] private static extern uint GetRawInputDeviceList([In, Out] RawDeviceList[]? devices, ref uint count, uint size);
     [DllImport("user32.dll")] private static extern uint GetRawInputData(IntPtr input, uint command, IntPtr data, ref uint size, uint headerSize);
@@ -274,4 +288,7 @@ internal sealed class GlobalTouchGestures : IDisposable
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
     [DllImport("shcore.dll")] private static extern int GetDpiForMonitor(IntPtr monitor, int type, out uint dpiX, out uint dpiY);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool EnumDisplaySettings(string device, int mode, [Out] byte[] settings);
+    [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] private static extern bool PostThreadMessage(uint thread, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern bool PeekMessage(out NativeMessage message, IntPtr window, uint first, uint last, uint remove);
 }
