@@ -31,7 +31,8 @@ public partial class MainWindow
                     {
                         var action = snapshot.ActionFor(match.Gesture);
                         if (action.Kind == GestureActionKind.Disabled) return;
-                        if (IsVisible) Hide();
+                        // Shortcuts belong to the current foreground window, including Esc for this launcher.
+                        if (action.Kind == GestureActionKind.Program && IsVisible) Hide();
                         GestureActionRunner.Run(action, ShowLauncher);
                     }
                 }
