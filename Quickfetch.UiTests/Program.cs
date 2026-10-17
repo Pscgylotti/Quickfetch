@@ -59,6 +59,34 @@ internal static class Program
         var gestureEncoder = new PngBitmapEncoder(); gestureEncoder.Frames.Add(BitmapFrame.Create(gesturePreview));
         using (var imageFile = File.Create(Path.Combine(Path.GetTempPath(), "quickfetch-gesture-settings.png"))) gestureEncoder.Save(imageFile);
         gestureDialog.Close();
+        var themeNames = new[] { "Ink", "Muted", "Surface", "Panel", "Accent", "Selection", "Line" };
+        var originalTheme = themeNames.ToDictionary(name => name, name => app.Resources[name]);
+        try
+        {
+            foreach (var (name, color) in new[] { ("Ink", "#EDF2FF"), ("Muted", "#ADB9CD"), ("Surface", "#10171C27"), ("Panel", "#28FFFFFF"), ("Accent", "#9CC7FF"), ("Selection", "#66567FAF"), ("Line", "#38FFFFFF") })
+                app.Resources[name] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+            var darkDialog = new GestureSettingsWindow(new GestureSettings());
+            var display = (ComboBox)darkDialog.FindName("DisplayPicker");
+            display.ApplyTemplate();
+            Check(((SolidColorBrush)display.Background).Color.R < 80 && ((SolidColorBrush)display.Foreground).Color.R > 200, "Dark combo fields must use a dark background with light text.");
+            var popup = (System.Windows.Controls.Primitives.Popup)display.Template.FindName("PART_Popup", display);
+            var popupSurface = (Border)popup.Child;
+            Check(((SolidColorBrush)popupSurface.Background).Color.R < 80, "Dark dropdown popups must not inherit a white system background.");
+            Check(darkDialog.TryFindResource(typeof(System.Windows.Controls.Primitives.ScrollBar)) is Style, "Gesture settings and popups must share the modern scrollbar style.");
+            var darkContent = (FrameworkElement)darkDialog.Content;
+            darkContent.Measure(new Size(700, 700)); darkContent.Arrange(new Rect(0, 0, 700, 700)); darkContent.UpdateLayout();
+            var darkPreview = new RenderTargetBitmap(700, 700, 96, 96, PixelFormats.Pbgra32);
+            var baseLayer = new DrawingVisual(); using (var dc = baseLayer.RenderOpen()) dc.DrawRectangle(darkDialog.Background, null, new Rect(0, 0, 700, 700));
+            darkPreview.Render(baseLayer); darkPreview.Render(darkContent);
+            var darkEncoder = new PngBitmapEncoder(); darkEncoder.Frames.Add(BitmapFrame.Create(darkPreview));
+            using (var imageFile = File.Create(Path.Combine(Path.GetTempPath(), "quickfetch-gesture-settings-dark.png"))) darkEncoder.Save(imageFile);
+            popupSurface.Measure(new Size(650, 300)); popupSurface.Arrange(new Rect(0, 0, 650, 150)); popupSurface.UpdateLayout();
+            var popupPreview = new RenderTargetBitmap(650, 150, 96, 96, PixelFormats.Pbgra32); popupPreview.Render(popupSurface);
+            var popupEncoder = new PngBitmapEncoder(); popupEncoder.Frames.Add(BitmapFrame.Create(popupPreview));
+            using (var imageFile = File.Create(Path.Combine(Path.GetTempPath(), "quickfetch-gesture-popup-dark.png"))) popupEncoder.Save(imageFile);
+            darkDialog.Close();
+        }
+        finally { foreach (var (name, resource) in originalTheme) app.Resources[name] = resource; }
         var keyboard = (TouchKeyboard)window.FindName("QuickKeyboard");
         var query = (TextBox)window.FindName("Query");
         var toggle = (Button)window.FindName("KeyboardToggle");

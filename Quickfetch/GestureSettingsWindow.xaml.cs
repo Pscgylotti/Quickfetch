@@ -23,7 +23,14 @@ public partial class GestureSettingsWindow : Window
         Height = Math.Max(MinHeight, Math.Min(Height, SystemParameters.WorkArea.Height - 20));
         Width = Math.Max(MinWidth, Math.Min(Width, SystemParameters.WorkArea.Width - 20));
         Result = JsonSerializer.Deserialize<GestureSettings>(JsonSerializer.Serialize(settings)) ?? new();
-        if (((SolidColorBrush)Application.Current.FindResource("Ink")).Color.R < 128) Background = new SolidColorBrush(Color.FromRgb(236, 241, 249));
+        var dark = ((SolidColorBrush)Application.Current.FindResource("Ink")).Color.R >= 128;
+        if (!dark) Background = new SolidColorBrush(Color.FromRgb(236, 241, 249));
+        else
+        {
+            Resources["GestureField"] = new SolidColorBrush(Color.FromRgb(43, 52, 66));
+            Resources["GesturePopup"] = new SolidColorBrush(Color.FromRgb(37, 45, 57));
+            Resources["GestureBorder"] = new SolidColorBrush(Color.FromRgb(75, 88, 110));
+        }
         EnabledCheck.IsChecked = Result.Enabled;
         RightClickCheck.IsChecked = Result.TwoFingerRightClick;
         var displays = new[] { new DisplayChoice("", "主显示器（默认）") }.Concat(Forms.Screen.AllScreens.Select((s, i) => new DisplayChoice(s.DeviceName, $"显示器 {i + 1} · {s.Bounds.Width} × {s.Bounds.Height}{(s.Primary ? " · 主屏" : "")}"))).ToArray();
