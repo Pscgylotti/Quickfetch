@@ -222,6 +222,40 @@ internal static class Program
                 var bySize = Await(client.SearchAsync("\"Quickfetch\"", 6, 30, CancellationToken.None));
                 Check(bySize.Sort == 6, "Everything must apply server-side size sorting.");
                 Console.WriteLine($"Everything IPC: connected to {client.Instance}; metadata and server-side sorting verified.");
+                var pinyinFolder = Path.GetFullPath(Path.Combine("artifacts", "PinyinIntegration-" + Guid.NewGuid().ToString("N")));
+                Directory.CreateDirectory(pinyinFolder);
+                var suffix = Guid.NewGuid().ToString("N");
+                var pinyinFile = Path.Combine(pinyinFolder, "你好拼音" + suffix + ".txt");
+                File.WriteAllText(pinyinFile, "pinyin search fixture");
+                try
+                {
+                    FileSearchPage WaitForPinyin(string text)
+                    {
+                        var started = System.Diagnostics.Stopwatch.StartNew();
+                        FileSearchPage result;
+                        do
+                        {
+                            result = Await(client.SearchAsync(text, 1, 50, CancellationToken.None));
+                            if (result.Entries.Any(entry => entry.Path.Equals(pinyinFile, StringComparison.OrdinalIgnoreCase)) || !client.PinyinApplied) return result;
+                            Await(Task.Delay(200).ContinueWith(_ => true));
+                        } while (started.Elapsed < TimeSpan.FromSeconds(8));
+                        return result;
+                    }
+                    var pinyin = WaitForPinyin("nihaopinyin" + suffix);
+                    if (client.PinyinApplied)
+                    {
+                        Check(pinyin.Entries.Any(entry => entry.Path.Equals(pinyinFile, StringComparison.OrdinalIgnoreCase)), "Everything must match a real Chinese filename through automatic full pinyin.");
+                        Check(WaitForPinyin("nhpy" + suffix).Entries.Any(entry => entry.Path.Equals(pinyinFile, StringComparison.OrdinalIgnoreCase)), "Everything must match the same real Chinese filename through automatic initials.");
+                        Console.WriteLine("Everything native pinyin: full spelling and initials verified against a real indexed Chinese filename.");
+                    }
+                    else Console.WriteLine("Everything native pinyin: unavailable in this instance; literal-query fallback retained.");
+                }
+                finally
+                {
+                    var artifactRoot = Path.GetFullPath("artifacts") + Path.DirectorySeparatorChar;
+                    if (!pinyinFolder.StartsWith(artifactRoot, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Invalid pinyin fixture cleanup path.");
+                    Directory.Delete(pinyinFolder, true);
+                }
             }
             finally { source.RemoveHook(Reply); }
             var results = (ListBox)window.FindName("Results");

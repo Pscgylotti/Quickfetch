@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets/Quickfetch.ico" />
+    <None Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <ProjectReference Include="../Quickfetch.Core/Quickfetch.Core.csproj" />
     <RuntimeHostConfigurationOption Include="Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation" Value="true" />
   </ItemGroup>

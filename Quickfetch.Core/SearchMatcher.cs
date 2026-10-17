@@ -1,21 +1,24 @@
-using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace Quickfetch.Core;
 
 public sealed record ShortcutEntry(string Name, string Path)
 {
-    public string Initial => Name.FirstOrDefault(char.IsAsciiLetterOrDigit).ToString().ToUpperInvariant();
+    private static readonly ConditionalWeakTable<ShortcutEntry, PinyinSearchKeys> KeyCache = new();
+    internal PinyinSearchKeys Keys => KeyCache.GetValue(this, static entry => PinyinSearchKeys.Create(entry.Name));
+    public string SearchName => Keys.Full;
+    public string Initial => SearchName.Length == 0 ? "?" : SearchName[..1].ToUpperInvariant();
     public string Directory => System.IO.Path.GetDirectoryName(Path) ?? "";
 }
 
 public sealed record SearchResult(ShortcutEntry Entry, int Tier, int Position, int SubstringLength,
-    double SubstringRatio, int CharacterOverlap, double CharacterRatio, bool ExactName)
+    double SubstringRatio, int CharacterOverlap, double CharacterRatio, bool ExactName, bool IsPinyin = false)
 {
     public string Name => Entry.Name;
     public string Path => Entry.Path;
     public string Initial => Entry.Initial;
     public string Location => Entry.Directory;
-    public string MatchLabel => Tier switch
+    public string MatchLabel => IsPinyin && Tier < 6 ? (Tier == 2 ? "拼音首字母" : "拼音匹配") : Tier switch
     {
         0 => ExactName ? "完整名称" : "完整单词",
         1 => "开头匹配",
@@ -27,38 +30,36 @@ public sealed record SearchResult(ShortcutEntry Entry, int Tier, int Position, i
     };
 }
 
-public static partial class SearchMatcher
+public static class SearchMatcher
 {
-    [GeneratedRegex("[A-Za-z0-9]+", RegexOptions.CultureInvariant)]
-    private static partial Regex Words();
-
-    public static string Normalize(string text) => string.Concat(text.Where(char.IsAsciiLetterOrDigit)).ToLowerInvariant();
+    public static string Normalize(string text) => PinyinSearchKeys.Normalize(text);
+    public static bool HasSearchableName(string text) => PinyinSearchKeys.IsSearchable(text);
 
     public static IReadOnlyList<SearchResult> Search(IEnumerable<ShortcutEntry> entries, string query)
     {
         var needle = Normalize(query);
         if (needle.Length == 0)
-            return entries.Where(e => Normalize(e.Name).Length > 0)
+            return entries.Where(e => e.SearchName.Length > 0)
                 .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Path, StringComparer.OrdinalIgnoreCase)
                 .Select(e => new SearchResult(e, 6, 0, 0, 0, 0, 0, false)).ToArray();
 
         var matches = new List<SearchResult>();
         foreach (var entry in entries)
         {
-            var name = Normalize(entry.Name);
+            var keys = entry.Keys;
+            var name = keys.Full;
             if (name.Length == 0) continue;
             var exactName = name == needle;
-            var fullWord = Words().Matches(entry.Name).Any(m => m.Value.Equals(needle, StringComparison.OrdinalIgnoreCase));
+            var fullWord = keys.Words.Contains(needle, StringComparer.Ordinal);
             var position = name.IndexOf(needle, StringComparison.Ordinal);
             var common = LongestCommonSubstring(name, needle);
             var overlap = CharacterOverlap(name, needle);
             if (overlap == 0) continue;
-            var initials = string.Concat(entry.Name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-                .Select(Normalize).Where(word => word.Length > 0).Select(word => word[0]));
-            var initialsMatch = initials.Length >= 2 && needle.Length >= 2 && initials.StartsWith(needle, StringComparison.Ordinal);
+            var initialsMatch = needle.Length >= 2 && keys.Initials.Any(initials => initials.Length >= 2 && initials.StartsWith(needle, StringComparison.Ordinal));
             var tier = exactName || fullWord ? 0 : position == 0 ? 1 : initialsMatch ? 2 : position > 0 ? 3 : common >= 2 ? 4 : 5;
             matches.Add(new(entry, tier, position < 0 ? int.MaxValue : position, common,
-                (double)common / needle.Length, overlap, (double)overlap / needle.Length, exactName));
+                (double)common / needle.Length, overlap, (double)overlap / needle.Length, exactName,
+                keys.HasChinese && !entry.Name.Contains(needle, StringComparison.OrdinalIgnoreCase)));
         }
         return matches.OrderBy(m => m.Tier)
             .ThenByDescending(m => m.ExactName)
@@ -66,7 +67,7 @@ public static partial class SearchMatcher
             .ThenByDescending(m => m.Tier == 4 ? m.SubstringRatio : 0)
             .ThenByDescending(m => m.Tier >= 4 ? m.CharacterOverlap : 0)
             .ThenByDescending(m => m.Tier >= 4 ? m.CharacterRatio : 0)
-            .ThenBy(m => Normalize(m.Name).Length)
+            .ThenBy(m => m.Entry.SearchName.Length)
             .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(m => m.Path, StringComparer.OrdinalIgnoreCase).ToArray();
     }

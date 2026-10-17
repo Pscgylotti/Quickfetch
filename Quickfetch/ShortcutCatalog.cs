@@ -15,7 +15,7 @@ public static class ShortcutCatalog
         var options = new EnumerationOptions { RecurseSubdirectories = recursive, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System, MatchCasing = MatchCasing.CaseInsensitive };
         return Directory.EnumerateFiles(folder, "*.lnk", options)
             .Select(path => new ShortcutEntry(Path.GetFileNameWithoutExtension(path), Path.GetFullPath(path)))
-            .Where(entry => SearchMatcher.Normalize(entry.Name).Length > 0)
+            .Where(entry => SearchMatcher.HasSearchableName(entry.Name))
             .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 

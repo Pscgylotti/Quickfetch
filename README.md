@@ -44,7 +44,11 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 默认通过系统 Known Folder API 定位**当前用户开始菜单**，并合并**公共开始菜单**，递归读取 `.lnk`。自选目录会保留，可关闭递归，不使用开发电脑的绝对路径。
 
-应用模式只比较英文和数字，不区分大小写。匹配优先级：完整名称 / 完整单词 → 开头连续匹配 → 空格分词首字母 → 中间连续匹配 → 最长公共连续子串 → 字符重叠。`Visual Studio Code` 可用 `vsc` / `vs`。
+应用模式输入英文、数字或拼音，不区分大小写，支持中文名称的全拼和首字母。匹配优先级：完整名称 / 完整单词 → 开头连续匹配 → 空格分词首字母 / 拼音首字母 → 中间连续匹配 → 最长公共连续子串 → 字符重叠。`Visual Studio Code` 可用 `vsc` / `vs`，`微信` 可用 `weixin` / `wx`，`QQ音乐` 可用 `qqyinyue` / `qqyy`。中文名称不会在扫描时被丢弃。
+
+拼音由离线 TinyPinyin.Net 生成，按快捷方式对象缓存在内存中，输入时不访问磁盘或重复转换名称；移除的对象可随垃圾回收释放缓存。常见“音乐、银行、重庆”等词补充词组读音，其余多音字使用字库默认读音，不保证任意词组的读音推断。
+
+文件模式在 Everything **1.5.0.1387+** 下，将普通英文/数字搜索词同时交给原文、全拼和首字母查询，使用 Everything 自身索引和排序，不另建全盘拼音索引，也不修改 Everything 设置。空格分词仍按 AND 组合。路径、引号、通配符、带冒号的高级语法和非拉丁查询保持原样；需显式拼音修饰符时可用 `pinyin-quan:` / `pinyin-jian:`。旧版 Everything 保留原有文件搜索，应用模式拼音不受影响。
 
 默认列表结合频率与最近使用排序，使用权重以 7 天为半衰期衰减。有搜索词时仅调整同一匹配档位的顺序。只统计通过 Quickfetch 成功启动的应用，从首次使用开始积累，不读取其他软件的使用历史。
 
@@ -90,6 +94,8 @@ pwsh -File scripts/Package.ps1
 ```
 
 `Quickfetch.Core` 包含匹配、排序与 [Everything Query2 IPC 协议](https://www.voidtools.com/support/everything/sdk/ipc/)；`Quickfetch` 提供界面、Shell 集成与增量缓存。CI 不需要 Everything，不修改系统搜索设置。
+
+第三方拼音组件版本和许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。文件拼音修饰符依据 [Everything 官方说明](https://www.voidtools.com/support/everything/search_modifiers/#pinyin)。
 
 ## Contributors
 

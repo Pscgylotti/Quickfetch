@@ -55,6 +55,11 @@ try
     Check(index.Items.Count == 2 && index.Items.Keys.Any(key => key.Contains("Moved")) && !index.Items.Keys.Any(key => key.Contains("Group")), "Folder moves must reconcile only their affected subtrees.");
     index.Configure(new[] { folder }, false); index.FullScan(); index.Apply(new[] { Path.Combine(moved, "Nested.lnk") });
     Check(index.Items.Count == 1, "Nonrecursive indexing must ignore nested change notifications.");
+    var chinese = Path.Combine(folder, "微信.lnk"); File.Copy(path, chinese);
+    index.Apply(new[] { chinese });
+    Check(index.Items.ContainsKey(chinese) && SearchMatcher.Search(index.Items.Values.Select(item => item.Entry), "wx").Any(result => result.Path == chinese && result.Tier == 2), "Incremental indexing must retain Chinese-only shortcut names and expose pinyin initials.");
+    Check(ShortcutCatalog.Read(folder, false).Any(entry => entry.Name == "微信"), "Legacy catalog reads must also retain Chinese-only names.");
+    File.Delete(chinese); index.Apply(new[] { chinese });
     Check(disk.Load(new[] { Path.Combine(folder, "Other") }, true) is null, "Caches for another root must not be restored.");
     File.Delete(path);
     Check((await cache.LoadAsync(entries)).Count == 0, "A link removed during loading must be skipped.");

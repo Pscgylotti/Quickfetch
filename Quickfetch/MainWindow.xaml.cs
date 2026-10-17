@@ -267,7 +267,7 @@ public partial class MainWindow : Window
         Results.ItemsSource = items;
         Results.SelectedIndex = matches.Count > 0 ? 0 : -1;
         if (items.Length > 0) Results.ScrollIntoView(items[0]);
-        EmptyMessage.Text = _loading ? "正在读取快捷方式…" : _entries.Count == 0 ? "此文件夹还没有英文或数字名称的 .lnk 快捷方式。\n点击设置可选择文件夹。" : "没有匹配的快捷方式";
+        EmptyMessage.Text = _loading ? "正在读取快捷方式…" : _entries.Count == 0 ? "此文件夹还没有可检索的 .lnk 快捷方式。\n支持中文、英文或数字名称，点击设置可选择文件夹。" : "没有匹配的快捷方式";
         EmptyMessage.Visibility = matches.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         Status.Text = Query.Text.Length == 0 ? $"{_entries.Count} 个快捷方式" : $"{matches.Count} / {_entries.Count} 个匹配";
     }

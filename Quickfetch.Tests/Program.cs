@@ -18,7 +18,7 @@ Check(SearchMatcher.Search(new[] { E("Tencent Meeting") }, "tencentmeeting").Sin
 Check(SearchMatcher.CharacterOverlap("a", "aaaa") == 1, "One name character must not count four times.");
 Check(SearchMatcher.LongestCommonSubstring("abcdef", "ace") == 1, "Subsequence must not count as a continuous substring.");
 Check(SearchMatcher.Search(new[] { E("QQ2"), E("QQ12") }, "2")[0].Name == "QQ2", "Digits must be searchable.");
-Check(SearchMatcher.Search(new[] { E("中文"), E("中文Code") }, "").Count == 1, "Names with no ASCII letters or digits must be excluded.");
+Check(SearchMatcher.Search(new[] { E("中文"), E("中文Code") }, "").Count == 2, "Chinese-only names must remain available for pinyin search.");
 Check(SearchMatcher.Search(new[] { E("Telegram"), E("QQ") }, "xyz").Count == 0, "An unrelated query must return no matches.");
 Check(SearchMatcher.Search(new[] { E("Code", "C:\\B\\Code.lnk"), E("Code", "C:\\A\\Code.lnk") }, "code")[0].Path.Contains("\\A\\"), "Duplicate names must have a stable path tiebreaker.");
 var initials = SearchMatcher.Search(new[] { E("AvscTool"), E("Visual Studio Code"), E("VscLauncher"), E("VSC"), E("VisualStudioCode") }, "vsc");
@@ -65,4 +65,5 @@ try { EverythingProtocol.Parse(new byte[5]); } catch (System.IO.InvalidDataExcep
 Check(malformedRejected, "Malformed IPC responses must be rejected.");
 Check(FileEntry.FormatSize(1024) == "1 KB" && FileEntry.FormatSize(0) == "0 B", "File sizes must format predictably.");
 GestureChecks.Run(Check);
+PinyinChecks.Run(Check);
 Console.WriteLine($"PASS: {passed} ranking/editing/touch/gesture/IPC checks");

@@ -41,7 +41,7 @@
           <TextBox x:Name="Query" Grid.Column="1" AutomationProperties.Name="搜索快捷方式" FontSize="23" FontWeight="Medium" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource Ink}" CaretBrush="{DynamicResource Accent}" SelectionBrush="{DynamicResource Accent}" VerticalContentAlignment="Center" TextChanged="Query_TextChanged" InputMethod.IsInputMethodEnabled="False" IsReadOnlyCaretVisible="True" PreviewTouchDown="Query_TouchDown" PreviewStylusDown="Query_StylusDown" PreviewMouseDown="Query_MouseDown">
             <TextBox.Template><ControlTemplate TargetType="TextBox"><Border Background="Transparent"><ScrollViewer x:Name="PART_ContentHost" Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Border></ControlTemplate></TextBox.Template>
           </TextBox>
-          <TextBlock x:Name="Placeholder" Grid.Column="1" Text="输入英文或数字，快速启动" FontSize="20" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" IsHitTestVisible="False"/>
+          <TextBlock x:Name="Placeholder" Grid.Column="1" Text="输入英文、数字或拼音，快速启动" FontSize="20" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" IsHitTestVisible="False"/>
           <Canvas x:Name="TouchCaret" Grid.Column="1" Visibility="Collapsed" IsHitTestVisible="False" ClipToBounds="True"><Line x:Name="TouchCaretLine" X1="0" X2="0" Y1="0" Y2="26" Stroke="{DynamicResource Accent}" StrokeThickness="1.6"/></Canvas>
         </Grid>
       </Border>

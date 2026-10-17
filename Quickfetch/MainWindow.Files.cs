@@ -61,7 +61,7 @@ public partial class MainWindow
         ModeLabel.Text = _fileMode ? "文件 · EVERYTHING" : "QUICKFETCH";
         ModeButton.ToolTip = _fileMode ? "切换到应用检索 · Tab" : "搜索文件 · Tab";
         ModeButton.SetResourceReference(BackgroundProperty, _fileMode ? "Selection" : "Surface");
-        Placeholder.Text = _fileMode ? "搜索文件名、路径或 Everything 语法" : "输入英文或数字，快速启动";
+        Placeholder.Text = _fileMode ? "搜索文件名、路径或 Everything 语法" : "输入英文、数字或拼音，快速启动";
         ResultHint.Text = _fileMode ? "Enter 打开    Shift + Enter 所在目录    Tab 应用" : "↑ ↓ 选择    Enter 启动    Tab 文件";
         QuickKeyboard.SetFileMode(_fileMode);
         SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput);
@@ -106,7 +106,7 @@ public partial class MainWindow
             if (items.Length > 0) Results.ScrollIntoView(items[0]);
             EmptyMessage.Text = "没有找到匹配的文件";
             EmptyMessage.Visibility = items.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-            Status.Text = $"{items.Length:N0} / {page.Total:N0} 个结果";
+            Status.Text = $"{items.Length:N0} / {page.Total:N0} 个结果" + (_everything.PinyinApplied ? " · 含拼音匹配" : "");
             MoreResults.Visibility = items.Length < page.Total ? Visibility.Visible : Visibility.Collapsed;
             UpdateSortLabels();
         }

@@ -75,7 +75,7 @@ public sealed class ShortcutIndex
         try
         {
             var name = Path.GetFileNameWithoutExtension(info.Name);
-            if (SearchMatcher.Normalize(name).Length > 0) result[info.FullName] = new(name, info.FullName, info.LastWriteTimeUtc.Ticks, info.Length);
+            if (SearchMatcher.HasSearchableName(name)) result[info.FullName] = new(name, info.FullName, info.LastWriteTimeUtc.Ticks, info.Length);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
