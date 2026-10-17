@@ -1,0 +1,31 @@
+<Window x:Class="Quickfetch.GestureSettingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Quickfetch · 触屏手势" Width="720" Height="740" MinWidth="560" MinHeight="440" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="#202632" Foreground="{DynamicResource Ink}" FontFamily="Segoe UI">
+  <Window.Resources>
+    <Style TargetType="TextBox"><Setter Property="MinHeight" Value="38"/><Setter Property="Padding" Value="9,7"/><Setter Property="Background" Value="{DynamicResource Panel}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+    <Style TargetType="ComboBox"><Setter Property="MinHeight" Value="38"/><Setter Property="Padding" Value="8"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  </Window.Resources>
+  <Border Background="{DynamicResource Surface}" Padding="22">
+    <DockPanel>
+      <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+        <TextBlock Text="触屏手势" FontSize="24" FontWeight="SemiBold"/>
+        <TextBlock Text="全局生效 · Quickfetch 隐藏到托盘后仍可使用" Foreground="{DynamicResource Muted}" Margin="0,6,0,12"/>
+        <CheckBox x:Name="EnabledCheck" Content="启用全局触屏手势" MinHeight="38"/>
+        <CheckBox x:Name="RightClickCheck" Content="启用双指右键：两指靠近轻点，在第一指落点右击" MinHeight="38"/>
+      </StackPanel>
+      <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+        <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="#FFF6A7A7" Margin="0,0,0,8"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="取消" IsCancel="True" MinWidth="90" Height="44"/><Button x:Name="SaveButton" Content="保存" Click="Save_Click" Background="{DynamicResource Selection}" Foreground="{DynamicResource Ink}" MinWidth="110" Height="44" Margin="10,0,0,0"/></StackPanel>
+      </StackPanel>
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
+        <StackPanel>
+          <TextBlock Text="触屏所在显示器" FontWeight="SemiBold" Margin="0,0,0,7"/>
+          <ComboBox x:Name="DisplayPicker" DisplayMemberPath="Label"/>
+          <TextBlock Text="单触屏设备默认映射主屏。外接屏时请选择触屏所在屏幕；暂不支持多块触屏同时映射。" TextWrapping="Wrap" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,7,0,14"/>
+          <StackPanel x:Name="Editors"/>
+          <TextBlock Text="识别规则：双指在 180 毫秒内落下；边缘起点距屏幕边缘约 32 DIP，沿同一方向滑动至少 100 DIP，松开后执行一次。右键轻点要求两指间距不超过 80 DIP、移动不超过 18 DIP，并在 320 毫秒内结束。" TextWrapping="Wrap" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,10,0,10"/>
+          <TextBlock Text="兼容性：通过全局 Raw Input 监听，不拦截原始触摸。部分应用仍可能滚动或点击，系统边缘面板也可能出现。普通权限无法控制管理员窗口；这不适用于锁屏或 UAC 安全桌面。" TextWrapping="Wrap" Foreground="{DynamicResource Muted}" FontSize="11"/>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</Window>

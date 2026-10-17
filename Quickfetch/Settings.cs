@@ -9,6 +9,7 @@ public sealed class Settings
 {
     public string Folder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
     public bool IncludeSubfolders { get; set; } = true;
+    public Quickfetch.Core.GestureSettings Gestures { get; set; } = new();
     [System.Text.Json.Serialization.JsonIgnore]
     public string[] ShortcutRoots => Folder.TrimEnd(Path.DirectorySeparatorChar).Equals(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
         ? new[] { Folder, Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu) } : new[] { Folder };

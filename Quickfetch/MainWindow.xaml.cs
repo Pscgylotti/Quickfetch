@@ -76,6 +76,7 @@ public partial class MainWindow : Window
         menu.Items.Add("打开 Quickfetch", null, (_, _) => Dispatcher.BeginInvoke(ShowLauncher));
         menu.Items.Add("快捷方式文件夹", null, (_, _) => Dispatcher.BeginInvoke(OpenShortcutFolder));
         menu.Items.Add("刷新快捷方式", null, (_, _) => Dispatcher.BeginInvoke(async () => await RefreshCatalog(true)));
+        menu.Items.Add("触屏手势设置", null, (_, _) => Dispatcher.BeginInvoke(OpenGestureSettings));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => Dispatcher.BeginInvoke(() => Application.Current.Shutdown()));
         using var personalize = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
@@ -87,6 +88,7 @@ public partial class MainWindow : Window
         try { _shortcut = new GlobalShortcut(() => Dispatcher.BeginInvoke(ShowLauncher)); }
         catch (Exception ex) { ShowLauncher(); SetMessage(ex.Message); }
         _ = RefreshCatalog();
+        ConfigureGestures();
         if (!background) ShowLauncher();
     }
 
@@ -470,6 +472,7 @@ public partial class MainWindow : Window
     {
         if (_disposed) return;
         _disposed = true;
+        ++_gestureGeneration; _gestures?.Dispose(); _gestures = null;
         _fileTimer.Stop(); _caretBlink.Stop(); _fileCancellation?.Cancel(); _everything?.Dispose();
         foreach (var watcher in _watchers) watcher.Dispose(); _watchers.Clear();
         _refreshTimer.Stop(); _shortcut?.Dispose();

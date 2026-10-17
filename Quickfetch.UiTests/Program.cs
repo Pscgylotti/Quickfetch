@@ -28,6 +28,37 @@ internal static class Program
         app.InitializeComponent();
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
         var window = new MainWindow();
+        Check(GestureActionRunner.ParseShortcut("Ctrl + Alt + T").SequenceEqual(new ushort[] { 0x11, 0x12, 0x54 }), "Shortcut parser must preserve modifier/key order.");
+        Check(GestureActionRunner.ParseShortcut("Win + S").SequenceEqual(new ushort[] { 0x5B, 0x53 }), "Win+S must be available as a launcher gesture.");
+        Check(GestureActionRunner.ParseShortcut("F12").Single() == 0x7B, "Function keys must be supported without a modifier.");
+        foreach (var invalidShortcut in new[] { "", "A", "Ctrl", "Ctrl + Ctrl + A", "Ctrl + A + B", "NoSuchKey", "A + Ctrl" })
+        {
+            bool rejected = false;
+            try { GestureActionRunner.ParseShortcut(invalidShortcut); } catch (ArgumentException) { rejected = true; }
+            Check(rejected, "Invalid gesture shortcuts must be rejected: " + invalidShortcut);
+        }
+        var gestureDialog = new GestureSettingsWindow(new Quickfetch.Core.GestureSettings());
+        Check(((CheckBox)gestureDialog.FindName("EnabledCheck")).IsChecked == true && ((CheckBox)gestureDialog.FindName("RightClickCheck")).IsChecked == false, "Gesture dialog must reflect global-on/right-click-opt-in defaults.");
+        Check(((StackPanel)gestureDialog.FindName("Editors")).Children.Count == 4, "All four global edge gestures must have independent editors.");
+        var invalidAction = new Quickfetch.Core.GestureAction { Kind = Quickfetch.Core.GestureActionKind.Program, Program = "missing.exe" };
+        bool invalidProgram = false;
+        try { GestureActionRunner.Validate(invalidAction); } catch (ArgumentException) { invalidProgram = true; }
+        Check(invalidProgram, "Program actions must reject nonexistent or relative paths before saving.");
+        Console.WriteLine(GlobalTouchGestures.ProbeDevices());
+        Console.WriteLine($"Real touchscreen HID descriptors verified with in-memory contact packets: {GlobalTouchGestures.CheckNativeParser()}");
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var ready = new ManualResetEventSlim();
+            string nativeStatus = "";
+            using (var listener = new GlobalTouchGestures(new Quickfetch.Core.GestureSettings(), (_, _, _) => { }, status => { nativeStatus = status; ready.Set(); }))
+                Check(ready.Wait(TimeSpan.FromSeconds(5)) && nativeStatus.StartsWith("全局监听已开启", StringComparison.Ordinal), "Global touch registration must start successfully, including after disposal/restart: " + nativeStatus);
+        }
+        var gestureContent = (FrameworkElement)gestureDialog.Content;
+        gestureContent.Measure(new Size(700, 700)); gestureContent.Arrange(new Rect(0, 0, 700, 700)); gestureContent.UpdateLayout();
+        var gesturePreview = new RenderTargetBitmap(700, 700, 96, 96, PixelFormats.Pbgra32); gesturePreview.Render(gestureContent);
+        var gestureEncoder = new PngBitmapEncoder(); gestureEncoder.Frames.Add(BitmapFrame.Create(gesturePreview));
+        using (var imageFile = File.Create(Path.Combine(Path.GetTempPath(), "quickfetch-gesture-settings.png"))) gestureEncoder.Save(imageFile);
+        gestureDialog.Close();
         var keyboard = (TouchKeyboard)window.FindName("QuickKeyboard");
         var query = (TextBox)window.FindName("Query");
         var toggle = (Button)window.FindName("KeyboardToggle");
