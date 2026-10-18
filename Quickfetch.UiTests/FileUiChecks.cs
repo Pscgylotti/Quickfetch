@@ -15,6 +15,24 @@ internal static class FileUiChecks
 {
     internal static void Run(MainWindow window, Action<bool, string> check, bool nativeIntegration)
     {
+        foreach (var sort in new uint[] { 1, 2, 3, 4, 5, 6, 13, 14, 0, 99 })
+        {
+            var saved = System.Text.Json.JsonSerializer.Serialize(new Settings { FileSort = sort });
+            var restored = System.Text.Json.JsonSerializer.Deserialize<Settings>(saved)!;
+            var restarted = new MainWindow(restored);
+            var expected = sort is >= 1 and <= 6 or 13 or 14 ? sort : 1;
+            var column = (expected - 1) / 2;
+            var button = (Button)restarted.FindName(column switch { 0 => "NameSort", 1 => "PathSort", 2 => "SizeSort", _ => "DateSort" });
+            check(button.Content.ToString()!.EndsWith(expected % 2 == 1 ? " ↑" : " ↓"), "A new window must restore the saved sorting column and direction; invalid settings must fall back safely.");
+            restarted.DisposeLauncher(); restarted.Close();
+        }
+        string persisted = "";
+        var changed = new MainWindow(new Settings(), value => persisted = System.Text.Json.JsonSerializer.Serialize(value));
+        ((Button)changed.FindName("ModeButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        ((Button)changed.FindName("DateSort")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var afterRestart = new MainWindow(System.Text.Json.JsonSerializer.Deserialize<Settings>(persisted)!);
+        check(((Button)afterRestart.FindName("DateSort")).Content.ToString() == "修改日期 ↓", "Clicking a sorting header must persist the resulting preference for the next process.");
+        changed.DisposeLauncher(); changed.Close(); afterRestart.DisposeLauncher(); afterRestart.Close();
         var query = (TextBox)window.FindName("Query");
         var mode = (Button)window.FindName("ModeButton");
         var settings = (FrameworkElement)window.FindName("SettingsPanel");
@@ -68,6 +86,10 @@ internal static class FileUiChecks
             var hit = WindowFromPoint(new NativePoint { X = (int)testPoint.X, Y = (int)testPoint.Y });
             check(GetAncestor(hit, 2) == new WindowInteropHelper(window).Handle, "The actual blurred drag ghost must pass native hit testing through to the underlying window.");
             GetWindowRect(dragVisuals.CancelHandle, out var rect);
+            var monitor = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)testPoint.X, (int)testPoint.Y)).Bounds;
+            check(rect.Top == monitor.Top && rect.Left == monitor.Left && rect.Right == monitor.Right, "The cancel strip must cover the physical top edge across the full monitor width.");
+            hit = WindowFromPoint(new NativePoint { X = rect.Left, Y = rect.Top });
+            check(GetAncestor(hit, 2) == dragVisuals.CancelHandle, "The first top-corner pixel must remain part of the cancel target, without rounded-corner gaps.");
             hit = WindowFromPoint(new NativePoint { X = (rect.Left + rect.Right) / 2, Y = (rect.Top + rect.Bottom) / 2 });
             check(GetAncestor(hit, 2) == dragVisuals.CancelHandle, "The top cancel strip must remain a native hit target while the ghost passes through.");
         }

@@ -21,7 +21,8 @@ namespace Quickfetch;
 
 public partial class MainWindow : Window
 {
-    private readonly Settings _settings = Settings.Load();
+    private readonly Settings _settings;
+    private readonly Action<Settings> _saveSettings;
     private IReadOnlyList<ShortcutEntry> _entries = Array.Empty<ShortcutEntry>();
     private readonly ShortcutIconCache _iconCache = new();
     private IReadOnlyDictionary<string, System.Windows.Media.ImageSource?> _icons = new Dictionary<string, System.Windows.Media.ImageSource?>();
@@ -47,8 +48,11 @@ public partial class MainWindow : Window
     private bool _listTouchMoved;
     private readonly ScaleTransform _openScale = new(1, 1);
     public string BackdropMode { get; private set; } = "Pending";
-    public MainWindow()
+    public MainWindow() : this(Settings.Load()) { }
+    internal MainWindow(Settings settings, Action<Settings>? saveSettings = null)
     {
+        _settings = settings;
+        _saveSettings = saveSettings ?? (value => value.Save());
         InitializeComponent();
         InitializeModes();
         InitializeFileColumns();

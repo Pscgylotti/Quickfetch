@@ -11,6 +11,7 @@ public sealed class Settings
     public bool IncludeSubfolders { get; set; } = true;
     public bool UseBuiltInKeyboard { get; set; } = true;
     public double[] FileColumnWeights { get; set; } = [2.2, 3.0, 0.9, 1.6];
+    public uint FileSort { get; set; } = 1;
     public Quickfetch.Core.GestureSettings Gestures { get; set; } = new();
     [System.Text.Json.Serialization.JsonIgnore]
     public string[] ShortcutRoots => Folder.TrimEnd(Path.DirectorySeparatorChar).Equals(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)

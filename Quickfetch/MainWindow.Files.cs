@@ -30,6 +30,8 @@ public partial class MainWindow
 
     private void InitializeModes()
     {
+        _fileSort = _settings.FileSort is >= 1 and <= 6 or 13 or 14 ? _settings.FileSort : 1;
+        UpdateSortLabels();
         _appTemplate = Results.ItemTemplate;
         _fileTimer.Tick += async (_, _) => { _fileTimer.Stop(); await SearchFiles(); };
         Query.SelectionChanged += (_, _) => ScheduleCaret();
@@ -131,6 +133,9 @@ public partial class MainWindow
     {
         var column = uint.Parse((string)((Button)sender).Tag);
         _fileSort = (_fileSort - 1) / 2 == column ? (_fileSort % 2 == 0 ? _fileSort - 1 : _fileSort + 1) : column * 2 + (column is 2 or 6 ? 2u : 1u);
+        _settings.FileSort = _fileSort;
+        try { _saveSettings(_settings); }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { AppDiagnostics.Current.Fault("save-file-sort", ex); }
         UpdateSortLabels(); QueueFileSearch(); FocusSearch();
     }
     private void UpdateSortLabels()
