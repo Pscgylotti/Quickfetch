@@ -6,10 +6,10 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 ## 下载与运行
 
-在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.1**：
+在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.2**：
 
-- `Quickfetch-0.0.1-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
-- `Quickfetch-0.0.1-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
+- `Quickfetch-0.0.2-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
+- `Quickfetch-0.0.2-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 启动后驻留托盘，**Win + S** 打开搜索。设置中可开启开机启动；默认关闭。托盘右键退出会释放快捷键。`--background` 仅在后台启动。
 
@@ -36,11 +36,11 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 设置中取消勾选 **使用 Quickfetch 内置键盘** 后，搜索框保留正常编辑焦点，平板打开、触摸搜索框或点击键盘按钮时，改用 Windows 系统触摸键盘。通过窗口级 InputPane 请求显示/隐藏；系统策略或相关组件不可用时显示提示，不修改系统键盘服务。内置模式保持 WPF 隐式系统键盘唤起关闭，避免同时出现两套键盘。
 
-## 全局触屏手势（main 分支新增）
+## 全局触屏手势（0.0.2 新增）
 
 设置 → **触屏手势…**，或右键托盘 → **触屏手势设置**。默认开启全局识别，隐藏到托盘后仍有效。顶部左半区 / 顶部右半区双指下滑、左边缘双指右滑、右边缘双指左滑分别支持配置快捷键或启动程序；动作默认未设置。勾选**启用双指右键**后，两指靠近轻点会在第一指的落点右击。
 
-监听使用事件驱动 Raw Input，无后台轮询或触摸轨迹文件。可选择触屏所在显示器。原始触摸不会被拦截，部分应用及 Windows 边缘面板仍可能响应；管理员窗口、锁屏和 UAC 安全桌面受系统限制。详见 [手势设置、识别规则与验证范围](docs/touch-gestures.md)。此功能包含在 main 分支，已有 0.0.1 发行包保持原样。
+监听使用事件驱动 Raw Input，无后台轮询或触摸轨迹文件。可选择触屏所在显示器。原始触摸不会被拦截，部分应用及 Windows 边缘面板仍可能响应；管理员窗口、锁屏和 UAC 安全桌面受系统限制。详见 [手势设置、识别规则与验证范围](docs/touch-gestures.md)。此功能包含在 0.0.2 及 main 分支，已有 0.0.1 发行包保持原样。
 
 ## 应用来源与排序
 
