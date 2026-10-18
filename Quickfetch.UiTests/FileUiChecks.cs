@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -74,15 +75,31 @@ internal static class FileUiChecks
         check(settings.Visibility == Visibility.Collapsed, "Every reopen after hiding must collapse settings.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (SystemParameters.ClientAreaAnimation)
-            check(window.HasAnimatedProperties && window.Width >= 660 && window.Width <= 784, "A visible mode switch must animate the window width without leaving its valid range.");
+            check(Math.Abs(window.Width - 784) < .1, "Switching must defer the target resize instead of jumping to it before the first animation frame.");
+        var samples = new List<NativeRect>();
+        EventHandler sample = (_, _) => { GetWindowRect(new WindowInteropHelper(window).Handle, out var bounds); samples.Add(bounds); };
+        CompositionTarget.Rendering += sample;
+        PumpAnimation(); CompositionTarget.Rendering -= sample;
+        check(Math.Abs(window.Width - 660) < 1, "The native resize must finish at the app-mode width.");
+        if (SystemParameters.ClientAreaAnimation && samples.Count > 1)
+        {
+            check(samples.Zip(samples.Skip(1), (a,b) => b.Right - b.Left <= a.Right - a.Left).All(ok => ok), "Recorded native window widths must shrink monotonically without reversals.");
+            check(samples.Max(r => r.Left + r.Right) - samples.Min(r => r.Left + r.Right) <= 2, "The native window center must remain stable within one physical pixel during resizing.");
+        }
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        PumpAnimation();
+        check(Math.Abs(window.Width - 784) < .1 && !window.HasAnimatedProperties && ((UIElement)window.FindName("ResultsSurface")).Opacity == 1, "Rapid reverse switching must finish at the correct width, clear animation clocks and restore result opacity.");
+        window.Hide(); mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); query.Text = "";
+        choosing.SetValue(window, false);
+    }
+    private static void PumpAnimation()
+    {
         var frame = new System.Windows.Threading.DispatcherFrame();
         var finish = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
         finish.Tick += (_, _) => { finish.Stop(); frame.Continue = false; };
         finish.Start(); System.Windows.Threading.Dispatcher.PushFrame(frame);
-        check(Math.Abs(window.Width - 784) < .1 && !window.HasAnimatedProperties && ((UIElement)window.FindName("ResultsSurface")).Opacity == 1, "Rapid reverse switching must finish at the correct width, clear animation clocks and restore result opacity.");
-        window.Hide(); mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); query.Text = "";
-        choosing.SetValue(window, false);
     }
     private static void Save(FrameworkElement root, string name, int width, int height)
     {

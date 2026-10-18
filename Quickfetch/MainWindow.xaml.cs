@@ -295,7 +295,7 @@ public partial class MainWindow : Window
         else if (e.Key == Key.F5) { if (_fileMode) QueueFileSearch(); else _ = RefreshCatalog(true); e.Handled = true; }
     }
 
-    private void SetTouchKeyboard(bool visible, bool physicalKeyboard = false)
+    private void SetTouchKeyboard(bool visible, bool physicalKeyboard = false, bool animateModeBounds = false)
     {
         StopModeTransition();
         // ReadOnly alone still allows WPF/Windows keyboard invocation on edit focus.
@@ -314,8 +314,13 @@ public partial class MainWindow : Window
         QuickKeyboard.Visibility = builtInVisible ? Visibility.Visible : Visibility.Collapsed;
         KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? "展开或收起触屏键盘" : "打开 Windows 系统触摸键盘";
         var center = Left + Width / 2;
-        Width = Math.Min(_fileMode ? 784 : 660, SystemParameters.WorkArea.Width - 24);
-        if (IsVisible) Left = Math.Clamp(center - Width / 2, SystemParameters.WorkArea.Left + 12, SystemParameters.WorkArea.Right - Width - 12);
+        var targetWidth = Math.Min(_fileMode ? 784 : 660, SystemParameters.WorkArea.Width - 24);
+        _modeTargetWidth = targetWidth;
+        if (!(animateModeBounds && IsVisible && SystemParameters.ClientAreaAnimation))
+        {
+            Width = targetWidth;
+            if (IsVisible) Left = Math.Clamp(center - Width / 2, SystemParameters.WorkArea.Left + 12, SystemParameters.WorkArea.Right - Width - 12);
+        }
         Height = Math.Min(builtInVisible ? 750 : 490, SystemParameters.WorkArea.Height - 24);
         if (IsVisible) Top = Math.Clamp(Top, SystemParameters.WorkArea.Top + 12, SystemParameters.WorkArea.Bottom - Height - 12);
         ScheduleBackdrop();
@@ -497,6 +502,7 @@ public partial class MainWindow : Window
     {
         if (_disposed) return;
         _disposed = true;
+        StopModeTransition();
         _fileHold.Stop();
         HideSystemKeyboard();
         ++_gestureGeneration; _gestures?.Dispose(); _gestures = null;

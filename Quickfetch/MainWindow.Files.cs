@@ -30,7 +30,6 @@ public partial class MainWindow
 
     private void InitializeModes()
     {
-        ResultsSurface.RenderTransform = _modeSlide;
         _appTemplate = Results.ItemTemplate;
         _fileTimer.Tick += async (_, _) => { _fileTimer.Stop(); await SearchFiles(); };
         Query.SelectionChanged += (_, _) => ScheduleCaret();
@@ -53,8 +52,10 @@ public partial class MainWindow
     private void Mode_Click(object sender, RoutedEventArgs e) => SwitchMode();
     private void SwitchMode()
     {
-        var previousWidth = Width;
-        var previousLeft = Left;
+        _openScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, null);
+        _openScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, null);
+        _openScale.ScaleX = _openScale.ScaleY = 1;
+        LauncherSurface.BeginAnimation(OpacityProperty, null); LauncherSurface.Opacity = 1;
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
         var transferredQuery = _fileMode ? "" : Query.Text;
         _fileMode = !_fileMode;
@@ -69,11 +70,11 @@ public partial class MainWindow
         Placeholder.Text = _fileMode ? "搜索文件名、路径或 Everything 语法" : "输入英文、数字或拼音，快速启动";
         ResultHint.Text = _fileMode ? "Enter 打开    Shift + Enter 所在目录    Tab 应用" : "↑ ↓ 选择    Enter 启动    Tab 文件";
         QuickKeyboard.SetFileMode(_fileMode);
-        SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput);
+        SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput, animateModeBounds: true);
         Query.Text = transferredQuery;
         UpdateResults();
         FocusSearch(); Query.SelectAll();
-        AnimateModeTransition(previousWidth, previousLeft);
+        AnimateModeTransition();
     }
     private void QueueFileSearch(bool resetLimit = true)
     {
