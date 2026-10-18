@@ -15,6 +15,12 @@ internal static class FileUiChecks
 {
     internal static void Run(MainWindow window, Action<bool, string> check, bool nativeIntegration)
     {
+        FileEntry Fixture(string name, bool folder = false) => new(name, "C:\\Example", "C:\\Example\\" + name, folder, 1024, null);
+        var unknown = FileResultIcons.Get(Fixture("unknown.extension-unseen"));
+        check(ReferenceEquals(unknown, FileResultIcons.Get(Fixture("unknown.other-unseen"))), "Unknown extensions must reuse one generic file icon.");
+        check(ReferenceEquals(FileResultIcons.Get(Fixture("photo.PNG")), FileResultIcons.Get(Fixture("photo.jpg"))), "Equivalent image types and extension case must share the same memory-cached icon.");
+        foreach (var entry in new[] { Fixture("Folder", true), Fixture("a.txt"), Fixture("a.pdf"), Fixture("a.png"), Fixture("a.mp4"), Fixture("a.mp3"), Fixture("a.zip"), Fixture("a.cs"), Fixture("a.exe"), Fixture("a.xlsx"), Fixture("a.pptx") })
+            check(FileResultIcons.Get(entry).IsFrozen && !ReferenceEquals(unknown, FileResultIcons.Get(entry)), "Common file types and folders must have frozen category icons: " + entry.Name);
         foreach (var sort in new uint[] { 1, 2, 3, 4, 5, 6, 13, 14, 0, 99 })
         {
             var saved = System.Text.Json.JsonSerializer.Serialize(new Settings { FileSort = sort });
@@ -45,7 +51,7 @@ internal static class FileUiChecks
         check(query.Text == "" && Math.Abs(window.Width - 660) < .1, "Returning to apps must clear the query and restore the app width.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         var rows = (ListBox)window.FindName("Results");
-        rows.ItemsSource = new[] { new FileItem(new FileEntry("Design notes.pdf", "C:\\Example", "C:\\Example\\Design notes.pdf", false, 81920, DateTimeOffset.Now)), new FileItem(new FileEntry("Preview.png", "C:\\Example", "C:\\Example\\Preview.png", false, 245760, DateTimeOffset.Now)) };
+        rows.ItemsSource = new[] { new FileItem(new FileEntry("Design notes.pdf", "C:\\Example", "C:\\Example\\Design notes.pdf", false, 81920, DateTimeOffset.Now)), new FileItem(new FileEntry("Preview.png", "C:\\Example", "C:\\Example\\Preview.png", false, 245760, DateTimeOffset.Now)), new FileItem(Fixture("Folder", true)), new FileItem(Fixture("Unknown.unseen")) };
         ((UIElement)window.FindName("EmptyMessage")).Visibility = Visibility.Collapsed;
         var choosing = typeof(MainWindow).GetField("_choosingFolder", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         choosing.SetValue(window, true);
@@ -64,6 +70,23 @@ internal static class FileUiChecks
         check(data.GetDataPresent(DataFormats.FileDrop) && data.GetData(DataFormats.FileDrop) is string[] paths && paths.Single() == original, "Cross-application drags must carry standard original-file paths.");
         var root = (FrameworkElement)window.Content;
         Save(root, "file-ui-preview.png", (int)window.Width, (int)window.Height);
+        var oldSurface = Application.Current.Resources["TooltipSurface"];
+        var oldInk = Application.Current.Resources["Ink"];
+        try
+        {
+            foreach (var dark in new[] { false, true })
+            {
+                var background = new SolidColorBrush(dark ? Color.FromRgb(39, 42, 49) : Color.FromRgb(245, 247, 250));
+                Application.Current.Resources["TooltipSurface"] = background;
+                Application.Current.Resources["Ink"] = new SolidColorBrush(dark ? Colors.White : Colors.Black);
+                var tip = new ToolTip { Style = (Style)Application.Current.FindResource(typeof(ToolTip)), Content = new TextBlock { Text = "C:\\Example\\" + new string('a', 180) + ".txt", TextWrapping = TextWrapping.Wrap, MaxWidth = 554 } };
+                tip.ApplyTemplate(); tip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                tip.Arrange(new Rect(tip.DesiredSize)); tip.UpdateLayout();
+                check(tip.DesiredSize.Width <= 580 && ReferenceEquals(tip.Background, background), "Path tooltips must wrap and use the selected theme surface.");
+                Save(tip, dark ? "file-tooltip-dark.png" : "file-tooltip-light.png", (int)Math.Ceiling(tip.ActualWidth), (int)Math.Ceiling(tip.ActualHeight));
+            }
+        }
+        finally { Application.Current.Resources["TooltipSurface"] = oldSurface; Application.Current.Resources["Ink"] = oldInk; }
         var flyout = new FileFlyout("Design notes.pdf");
         var flyoutRoot = (FrameworkElement)flyout.Content;
         flyoutRoot.Measure(new Size(294, double.PositiveInfinity));

@@ -64,6 +64,9 @@ bool malformedRejected = false;
 try { EverythingProtocol.Parse(new byte[5]); } catch (System.IO.InvalidDataException) { malformedRejected = true; }
 Check(malformedRejected, "Malformed IPC responses must be rejected.");
 Check(FileEntry.FormatSize(1024) == "1 KB" && FileEntry.FormatSize(0) == "0 B", "File sizes must format predictably.");
+Check(new FileEntry("Folder", "C:\\", "C:\\Folder", true, 4096, null).SizeText == "4 KB", "Folder sizes supplied by Everything must display like file sizes.");
+Check(new FileEntry("Empty", "C:\\", "C:\\Empty", true, 0, null).SizeText == "0 B", "An indexed empty folder must display zero size.");
+Check(new FileEntry("Unknown", "C:\\", "C:\\Unknown", true, null, null).SizeText == "—", "An unavailable folder size must remain unknown instead of inventing a value.");
 GestureChecks.Run(Check);
 FileTouchChecks.Run(Check);
 PinyinChecks.Run(Check);

@@ -55,7 +55,7 @@ public partial class App : Application
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         if (key?.GetValue("AppsUseLightTheme") is int light && light == 0)
         {
-            foreach (var (name, color) in new[] { ("Surface", "#10171C27"), ("Panel", "#28FFFFFF"), ("KeyboardSurface", "#30202737"), ("KeySurface", "#26FFFFFF"), ("Ink", "#EDF2FF"), ("Muted", "#ADB9CD"), ("Accent", "#9CC7FF"), ("Line", "#38FFFFFF"), ("Selection", "#66567FAF") })
+            foreach (var (name, color) in new[] { ("TooltipSurface", "#F0272A31"), ("Surface", "#10171C27"), ("Panel", "#28FFFFFF"), ("KeyboardSurface", "#30202737"), ("KeySurface", "#26FFFFFF"), ("Ink", "#EDF2FF"), ("Muted", "#ADB9CD"), ("Accent", "#9CC7FF"), ("Line", "#38FFFFFF"), ("Selection", "#66567FAF") })
                 Resources[name] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
         }
     }

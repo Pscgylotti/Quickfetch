@@ -2,7 +2,7 @@ namespace Quickfetch.Core;
 
 public sealed record FileEntry(string Name, string Directory, string Path, bool IsFolder, long? Size, DateTimeOffset? Modified)
 {
-    public string SizeText => IsFolder ? "文件夹" : Size is null ? "—" : FormatSize(Size.Value);
+    public string SizeText => Size is null ? "—" : FormatSize(Size.Value);
     public string DateText => Modified?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
     public static string FormatSize(long bytes)
     {

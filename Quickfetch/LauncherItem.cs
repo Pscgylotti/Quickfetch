@@ -15,4 +15,5 @@ public sealed record FileItem(FileEntry File) : ILauncherItem
     public string Location => File.Directory;
     public string SizeText => File.SizeText;
     public string DateText => File.DateText;
+    public System.Windows.Media.ImageSource Icon => FileResultIcons.Get(File);
 }
