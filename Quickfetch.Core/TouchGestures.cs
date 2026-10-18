@@ -78,9 +78,9 @@ public sealed class TouchGestureRecognizer
         if (duration <= 320 && pair.All(t => t.MaxMovement <= 18) && Distance(a.Start, b.Start) <= Math.Clamp(tapDistance, 20, 140))
             return Found(TouchGesture.TwoFingerTap);
         const double edge = 32, travel = 100;
-        bool Vertical(Track t) => t.Last.Y - t.Start.Y >= travel && Math.Abs(t.Last.X - t.Start.X) <= (t.Last.Y - t.Start.Y) * 0.6;
+        bool Vertical(Track t) => t.Last.Y - t.Start.Y >= height * 0.08 && Math.Abs(t.Last.X - t.Start.X) <= (t.Last.Y - t.Start.Y) * 0.6;
         bool Horizontal(Track t, int direction) => (t.Last.X - t.Start.X) * direction >= travel && Math.Abs(t.Last.Y - t.Start.Y) <= Math.Abs(t.Last.X - t.Start.X) * 0.6;
-        if (pair.All(t => t.Start.Y is >= 0 and <= edge && Vertical(t)))
+        if (pair.All(t => t.Start.Y >= 0 && t.Start.Y <= height * 0.06 && Vertical(t)))
         {
             if (pair.All(t => t.Start.X < width / 2)) return Found(TouchGesture.TopLeftDown);
             if (pair.All(t => t.Start.X >= width / 2)) return Found(TouchGesture.TopRightDown);

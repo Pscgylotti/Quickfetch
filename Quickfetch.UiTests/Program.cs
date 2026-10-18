@@ -136,7 +136,7 @@ internal static class Program
         content.Arrange(new Rect(0, 0, 660, 750));
         content.UpdateLayout();
         Check(keys.Where(key => key.Visibility == Visibility.Visible).All(key => key.ActualWidth >= 40 && key.ActualHeight >= 40), "Every visible key must retain a usable touch target.");
-        Check(new[] { "FolderButton", "KeyboardToggle", "SettingsButton", "HideButton" }.Select(name => (Button)window.FindName(name)).All(button => button.ActualWidth >= 48 && button.ActualHeight >= 48), "Header actions must have at least 48-DIP touch targets.");
+        Check(new[] { "ModeButton", "KeyboardToggle", "SettingsButton", "HideButton" }.Select(name => (Button)window.FindName(name)).All(button => button.ActualWidth >= 48 && button.ActualHeight >= 48), "Header actions must have at least 48-DIP touch targets.");
         var preview = new RenderTargetBitmap(660, 750, 96, 96, PixelFormats.Pbgra32);
         preview.Render(content);
         var encoder = new PngBitmapEncoder();

@@ -22,7 +22,13 @@ internal static class GestureChecks
         check(Swipe([P(1, 100, 100), P(2, 160, 100)], [P(1, 100, 260), P(2, 160, 260)]) is null, "Ordinary two-finger scrolling in the middle must not trigger an edge action.");
         check(Swipe([P(1, 100, 2), P(2, 160, 2)], [P(1, 100, 160), P(2, 160, 2)]) is null, "One moving finger must not trigger a swipe.");
         check(Swipe([P(1, 100, 2), P(2, 160, 2)], [P(1, 320, 160), P(2, 380, 160)]) is null, "A mostly diagonal gesture must not trigger down.");
-        check(Swipe([P(1, 100, 2), P(2, 160, 2)], [P(1, 100, 90), P(2, 160, 90)]) is null, "Short swipes must not trigger.");
+        check(Swipe([P(1, 100, 2), P(2, 160, 2)], [P(1, 100, 50), P(2, 160, 50)]) is null, "Swipes shorter than 8% of the display height must not trigger.");
+        check(Swipe([P(1, 100, 60), P(2, 160, 60)], [P(1, 100, 140), P(2, 160, 140)], height: 1000)?.Gesture == TouchGesture.TopLeftDown, "The top 6% boundary and exact 8% travel must be inclusive.");
+        check(Swipe([P(1, 700, 60), P(2, 760, 60)], [P(1, 700, 140), P(2, 760, 140)], height: 1000)?.Gesture == TouchGesture.TopRightDown, "Percentage thresholds must also apply to the right half.");
+        check(Swipe([P(1, 100, 60), P(2, 160, 61)], [P(1, 100, 150), P(2, 160, 151)], height: 1000) is null, "Both contacts must start within the top 6%.");
+        check(Swipe([P(1, 100, 50), P(2, 160, 50)], [P(1, 100, 130), P(2, 160, 129)], height: 1000) is null, "Both contacts must individually travel at least 8%.");
+        check(Swipe([P(1, 100, 120), P(2, 160, 120)], [P(1, 100, 280), P(2, 160, 280)], height: 2000)?.Gesture == TouchGesture.TopLeftDown, "Large displays must use proportional start and travel thresholds.");
+        check(Swipe([P(1, 100, 24), P(2, 160, 24)], [P(1, 100, 56), P(2, 160, 56)], height: 400)?.Gesture == TouchGesture.TopLeftDown, "Small displays must not retain the old fixed 100-DIP threshold.");
         check(Swipe([P(1, 100, 2), P(2, 160, 2)], [P(1, 100, 160), P(2, 160, 160)], 1600) is null, "Long held gestures must expire.");
         check(Swipe([P(1, 100, 2)], [P(1, 100, 160)]) is null, "One finger must never trigger.");
         check(Swipe([P(1, 100, 2), P(2, 160, 2), P(3, 220, 2)], [P(1, 100, 160), P(2, 160, 160)]) is null, "A third finger must cancel the entire session.");

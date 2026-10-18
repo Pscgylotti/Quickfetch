@@ -17,7 +17,7 @@ internal static class FileUiChecks
         var query = (TextBox)window.FindName("Query");
         var mode = (Button)window.FindName("ModeButton");
         var settings = (FrameworkElement)window.FindName("SettingsPanel");
-        check(((Button)window.FindName("FolderButton")).Content is TextBlock && ((Button)window.FindName("SettingsButton")).Content is TextBlock, "Header folder/settings actions must be icon-only and retain named buttons.");
+        check(((Button)window.FindName("SettingsButton")).Content is TextBlock && settings.IsAncestorOf((Button)window.FindName("FolderButton")), "Settings must remain icon-only, and folder opening must be available only inside its panel.");
         query.Text = "quick";
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         check(query.Text == "quick" && Math.Abs(window.Width - 784) < .1, "Application-to-file switching must preserve the query and use a 20% narrower file window.");
