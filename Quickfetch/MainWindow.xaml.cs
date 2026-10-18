@@ -146,12 +146,12 @@ public partial class MainWindow : Window
     }
     private void ScheduleBackdrop()
     {
-        if (_disposed || _backdropPending || new WindowInteropHelper(this).Handle == IntPtr.Zero) return;
+        if (_disposed || _modeTransitionActive || _backdropPending || new WindowInteropHelper(this).Handle == IntPtr.Zero) return;
         _backdropPending = true;
         Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
         {
             _backdropPending = false;
-            if (!_disposed) BackdropMode = WindowBackdrop.Apply(new WindowInteropHelper(this).Handle);
+            if (!_disposed && !_modeTransitionActive) BackdropMode = WindowBackdrop.Apply(new WindowInteropHelper(this).Handle);
         });
     }
     private IntPtr WindowMessages(IntPtr handle, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -297,6 +297,7 @@ public partial class MainWindow : Window
 
     private void SetTouchKeyboard(bool visible, bool physicalKeyboard = false)
     {
+        StopModeTransition();
         // ReadOnly alone still allows WPF/Windows keyboard invocation on edit focus.
         // In touch mode keep focus on a non-edit surface; only our keys edit the query.
         _touchInput = _settings.UseBuiltInKeyboard && !physicalKeyboard && (visible || TabletPosture.IsTablet);
@@ -377,7 +378,8 @@ public partial class MainWindow : Window
         }
         else
         {
-            var edit = _fileMode && key == "space" ? (Query.Text.Remove(Query.SelectionStart, Query.SelectionLength).Insert(Query.SelectionStart, " "), Query.SelectionStart + 1) : QueryEditor.Apply(Query.Text, Query.SelectionStart, Query.SelectionLength, key);
+            var fileCharacter = key == "space" ? " " : key;
+            var edit = _fileMode && fileCharacter.Length == 1 ? (Query.Text.Remove(Query.SelectionStart, Query.SelectionLength).Insert(Query.SelectionStart, fileCharacter), Query.SelectionStart + 1) : QueryEditor.Apply(Query.Text, Query.SelectionStart, Query.SelectionLength, key);
             Query.Text = edit.Item1;
             Query.Select(edit.Item2, 0);
         }

@@ -72,6 +72,15 @@ internal static class FileUiChecks
         }
         settings.Visibility = Visibility.Visible; window.Hide(); window.ShowLauncher();
         check(settings.Visibility == Visibility.Collapsed, "Every reopen after hiding must collapse settings.");
+        mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (SystemParameters.ClientAreaAnimation)
+            check(window.HasAnimatedProperties && window.Width >= 660 && window.Width <= 784, "A visible mode switch must animate the window width without leaving its valid range.");
+        mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var finish = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
+        finish.Tick += (_, _) => { finish.Stop(); frame.Continue = false; };
+        finish.Start(); System.Windows.Threading.Dispatcher.PushFrame(frame);
+        check(Math.Abs(window.Width - 784) < .1 && !window.HasAnimatedProperties && ((UIElement)window.FindName("ResultsSurface")).Opacity == 1, "Rapid reverse switching must finish at the correct width, clear animation clocks and restore result opacity.");
         window.Hide(); mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); query.Text = "";
         choosing.SetValue(window, false);
     }

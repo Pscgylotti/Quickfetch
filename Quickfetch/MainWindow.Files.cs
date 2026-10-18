@@ -30,6 +30,7 @@ public partial class MainWindow
 
     private void InitializeModes()
     {
+        ResultsSurface.RenderTransform = _modeSlide;
         _appTemplate = Results.ItemTemplate;
         _fileTimer.Tick += async (_, _) => { _fileTimer.Stop(); await SearchFiles(); };
         Query.SelectionChanged += (_, _) => ScheduleCaret();
@@ -38,6 +39,7 @@ public partial class MainWindow
         {
             if (!IsVisible)
             {
+                StopModeTransition();
                 _fileHold.Stop();
                 HideSystemKeyboard();
                 _caretBlink.Stop(); _fileTimer.Stop(); _fileCancellation?.Cancel(); _fileVersion++;
@@ -51,6 +53,8 @@ public partial class MainWindow
     private void Mode_Click(object sender, RoutedEventArgs e) => SwitchMode();
     private void SwitchMode()
     {
+        var previousWidth = Width;
+        var previousLeft = Left;
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
         var transferredQuery = _fileMode ? "" : Query.Text;
         _fileMode = !_fileMode;
@@ -69,6 +73,7 @@ public partial class MainWindow
         Query.Text = transferredQuery;
         UpdateResults();
         FocusSearch(); Query.SelectAll();
+        AnimateModeTransition(previousWidth, previousLeft);
     }
     private void QueueFileSearch(bool resetLimit = true)
     {

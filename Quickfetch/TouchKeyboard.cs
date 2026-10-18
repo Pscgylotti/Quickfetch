@@ -19,33 +19,32 @@ public sealed class TouchKeyboard : Border
         var grid = new Grid();
         _grid = grid;
         for (var i = 0; i < 24; i++) grid.ColumnDefinitions.Add(new ColumnDefinition());
-        for (var i = 0; i < 5; i++) grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(46) });
+        for (var i = 0; i < 7; i++) grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(i is 4 or 6 ? 0 : 46) });
         AddLetters(grid, "1234567890", 0, 0);
         AddLetters(grid, "qwertyuiop", 1, 0);
         AddLetters(grid, "asdfghjkl", 2, 1);
         AddLetters(grid, "zxcvbnm", 3, 2);
         AddKey(grid, "⌫", "backspace", 3, 16, 4, "删除光标前的字符");
-        AddKey(grid, "清空", "clear", 4, 0, 6);
-        AddKey(grid, "↑", "up", 4, 6, 4);
-        AddKey(grid, "↓", "down", 4, 10, 4);
-        AddKey(grid, "收起", "hide", 4, 14, 6);
+        AddLetters(grid, "-_.()[]+@#", 4, 0);
+        AddKey(grid, "清空", "clear", 5, 0, 6);
+        AddKey(grid, "↑", "up", 5, 6, 4);
+        AddKey(grid, "↓", "down", 5, 10, 4);
+        AddKey(grid, "收起", "hide", 5, 14, 6);
         AddKey(grid, "↵\n启动", "enter", 0, 20, 4);
-        Grid.SetRowSpan(grid.Children[grid.Children.Count - 1], 5);
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(0) });
-        AddKey(grid, "应用 / 文件", "mode", 5, 0, 6);
-        AddKey(grid, "空格", "space", 5, 6, 8);
-        AddKey(grid, "打开目录", "directory", 5, 14, 6);
+        Grid.SetRowSpan(grid.Children[grid.Children.Count - 1], 7);
+        AddKey(grid, "应用 / 文件", "mode", 6, 0, 6);
+        AddKey(grid, "空格", "space", 6, 6, 8);
+        AddKey(grid, "打开目录", "directory", 6, 14, 6);
         SetFileMode(false);
         Child = grid;
-        AutomationProperties.SetName(this, "英文与数字触屏键盘");
+        AutomationProperties.SetName(this, "英文、数字与文件名符号触屏键盘");
     }
     public void SetFileMode(bool fileMode)
     {
-        _grid.RowDefinitions[5].Height = new GridLength(fileMode ? 46 : 0);
+        _grid.RowDefinitions[4].Height = _grid.RowDefinitions[6].Height = new GridLength(fileMode ? 46 : 0);
         foreach (UIElement child in _grid.Children)
         {
-            if (Grid.GetRow(child) == 5) child.Visibility = fileMode ? Visibility.Visible : Visibility.Collapsed;
-            if (child is Button key && (string)key.Tag == "enter") Grid.SetRowSpan(key, fileMode ? 6 : 5);
+            if (Grid.GetRow(child) is 4 or 6) child.Visibility = fileMode ? Visibility.Visible : Visibility.Collapsed;
         }
     }
     private void AddLetters(Grid grid, string letters, int row, int start)

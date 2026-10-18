@@ -100,12 +100,13 @@ internal static class Program
         var grid = (Grid)keyboard.Child;
         var keys = grid.Children.OfType<Button>().ToArray();
         void Key(string value) => keys.Single(key => (string)key.Tag == value).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Check(keys.Length == 45 && keys.All(key => !key.Focusable), "All touch keys must preserve non-edit focus.");
+        Check(keys.Length == 55 && keys.All(key => !key.Focusable), "All touch keys must preserve non-edit focus.");
         string Row(int row) => string.Concat(keys.Where(key => Grid.GetRow(key) == row && ((string)key.Tag).Length == 1).Select(key => (string)key.Tag));
         Check(Row(0) == "1234567890" && Row(1) == "qwertyuiop" && Row(2) == "asdfghjkl" && Row(3) == "zxcvbnm", "Keyboard rows must use the standard digit/QWERTY layout.");
         Check(Grid.GetColumn(keys.Single(key => (string)key.Tag == "a")) == 1 && Grid.GetColumn(keys.Single(key => (string)key.Tag == "z")) == 2, "Home and bottom rows must be staggered by half/full keys.");
         var enter = keys.Single(key => (string)key.Tag == "enter");
-        Check(Grid.GetColumn(enter) == 20 && Grid.GetRow(enter) == 0 && Grid.GetRowSpan(enter) == 5, "Enter must occupy the entire independent right side.");
+        Check(Grid.GetColumn(enter) == 20 && Grid.GetRow(enter) == 0 && Grid.GetRowSpan(enter) == 7, "Enter must occupy the entire independent right side, including collapsed optional rows.");
+        Check(Row(4) == "-_.()[]+@#" && keys.Where(key => Grid.GetRow(key) == 4).All(key => !Path.GetInvalidFileNameChars().Contains(((string)key.Tag)[0]) && key.Visibility == Visibility.Collapsed), "The symbol row must contain only legal filename characters and remain hidden in app mode.");
         toggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(keyboard.Visibility == Visibility.Visible && query.IsReadOnly, "Touch mode must show the keyboard and use a read-only edit surface.");
         Check(!query.Focusable && !query.IsTabStop, "The touch query must not accept edit focus or request the system keyboard.");
@@ -152,7 +153,10 @@ internal static class Program
         window.EverythingAvailable = () => EverythingClient.IsAvailable;
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(((FrameworkElement)window.FindName("FileSortHeader")).Visibility == Visibility.Visible && window.Width > 660, "File mode must show sortable metadata columns and expand the window.");
-        Check(keys.Single(key => (string)key.Tag == "directory").Visibility == Visibility.Visible && Grid.GetRowSpan(enter) == 6, "File mode must expose the directory key and retain a full-height Enter key.");
+        Check(keys.Single(key => (string)key.Tag == "directory").Visibility == Visibility.Visible && Grid.GetRowSpan(enter) == 7, "File mode must expose the directory key and retain a full-height Enter key.");
+        Check(keys.Where(key => Grid.GetRow(key) == 4).All(key => key.Visibility == Visibility.Visible), "File mode must expose the symbol row.");
+        query.Text = "report"; query.Select(6, 0); Key("_"); Key(".");
+        Check(query.Text == "report_." && query.CaretIndex == 8, "Symbol keys must insert actual characters and advance the caret.");
         query.Text = "文件名 .txt";
         Check(query.Text == "文件名 .txt", "File mode must retain Unicode, spaces and punctuation.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
