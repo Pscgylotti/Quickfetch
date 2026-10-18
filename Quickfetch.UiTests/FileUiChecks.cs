@@ -113,6 +113,23 @@ internal static class FileUiChecks
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         PumpAnimation();
         check(Math.Abs(window.Width - 784) < .1 && !window.HasAnimatedProperties && ((UIElement)window.FindName("ResultsSurface")).Opacity == 1, "Rapid reverse switching must finish at the correct width, clear animation clocks and restore result opacity.");
+        var inside = window.PointToScreen(new Point(window.ActualWidth / 2, window.ActualHeight / 2));
+        choosing.SetValue(window, false);
+        window.DismissForOutsideClick((int)inside.X, (int)inside.Y);
+        check(window.IsVisible, "Clicks inside the launcher must preserve it.");
+        choosing.SetValue(window, true); window.DismissForOutsideClick(-32000, -32000);
+        check(window.IsVisible, "Folder dialogs and file menus must suppress outside-click dismissal.");
+        choosing.SetValue(window, false); window.DismissForOutsideClick(-32000, -32000);
+        check(!window.IsVisible, "An outside click must dismiss the launcher even without a focus change.");
+        window.ShowLauncher();
+        check(window.IsVisible, "Outside dismissal must only hide the launcher, allowing it to reopen.");
+        choosing.SetValue(window, true);
+        if (nativeIntegration)
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
+                using (var monitor = new OutsideClickMonitor((_, _) => { }))
+                    check(true, "The native outside-click hook must install and uninstall repeatedly.");
+        }
         window.Hide(); mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); query.Text = "";
         choosing.SetValue(window, false);
     }

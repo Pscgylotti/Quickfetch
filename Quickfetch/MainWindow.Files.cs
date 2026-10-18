@@ -38,6 +38,7 @@ public partial class MainWindow
         Query.SizeChanged += (_, _) => ScheduleCaret();
         IsVisibleChanged += (_, _) =>
         {
+            ConfigureOutsideClicks();
             if (!IsVisible)
             {
                 StopModeTransition();

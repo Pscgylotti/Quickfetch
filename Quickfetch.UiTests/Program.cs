@@ -29,7 +29,7 @@ internal static class Program
         DiagnosticsChecks.Run(Check);
         PowerLifecycleChecks.Run(Check);
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
-        var window = new MainWindow(Settings.Load(), _ => { });
+        var window = new MainWindow(new Settings(), _ => { });
         FileUiChecks.Run(window, Check, args.Contains("--integration"));
         Check(window.Icon is not null, "The launcher must expose the embedded Quickfetch window icon.");
         window.SetKeyboardPreference(true, showKeyboard: false);

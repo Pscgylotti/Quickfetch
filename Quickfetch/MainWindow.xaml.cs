@@ -462,7 +462,7 @@ public partial class MainWindow : Window
     {
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null; _columnTouch = null;
         _doubleTap.Reset(); _listTouchId = null; _listTouchItem = null;
-        if (!_choosingFolder) Hide();
+        if (!_choosingFolder && !IsTouchKeyboardWindow(GetForegroundWindow())) Hide();
     }
     private void Header_Drag(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed && e.OriginalSource is TextBlock) DragMove(); }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
@@ -506,6 +506,7 @@ public partial class MainWindow : Window
     {
         if (_disposed) return;
         _disposed = true;
+        ConfigureOutsideClicks();
         StopModeTransition();
         _fileHold.Stop();
         HideSystemKeyboard();
