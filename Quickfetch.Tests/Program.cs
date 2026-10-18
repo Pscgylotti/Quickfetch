@@ -65,5 +65,6 @@ try { EverythingProtocol.Parse(new byte[5]); } catch (System.IO.InvalidDataExcep
 Check(malformedRejected, "Malformed IPC responses must be rejected.");
 Check(FileEntry.FormatSize(1024) == "1 KB" && FileEntry.FormatSize(0) == "0 B", "File sizes must format predictably.");
 GestureChecks.Run(Check);
+FileTouchChecks.Run(Check);
 PinyinChecks.Run(Check);
 Console.WriteLine($"PASS: {passed} ranking/editing/touch/gesture/IPC checks");

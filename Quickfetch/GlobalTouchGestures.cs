@@ -25,6 +25,7 @@ internal sealed class GlobalTouchGestures : IDisposable
     private ScreenMapping? _mapping;
     private bool _reportFailureLogged;
     private int _disposed;
+    internal Action<TouchContact[]>? FrameObserved { get; set; }
     internal GlobalTouchGestures(GestureSettings settings, Action<GestureMatch, int, int> matched, Action<string> status, AppDiagnostics? diagnostics = null)
     {
         _settings = settings; _matched = matched; _status = status;
@@ -137,6 +138,11 @@ internal sealed class GlobalTouchGestures : IDisposable
                 var (x, y) = rotation switch { 1 => (1 - p.Y, p.X), 2 => (1 - p.X, 1 - p.Y), 3 => (p.Y, 1 - p.X), _ => (p.X, p.Y) };
                 return new TouchContact(p.Id, x * (bounds.Width - 1) / scale, y * (bounds.Height - 1) / scale, p.Down);
             }).ToArray();
+            if (FrameObserved is { } observer)
+            {
+                try { observer(mapped.Select(p => new TouchContact(p.Id, bounds.Left + p.X * scale, bounds.Top + p.Y * scale, p.Down)).ToArray()); }
+                catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { _diagnostics.Fault("touch-drag-observer", ex); }
+            }
             var match = device.Recognizer.Frame(mapped, Environment.TickCount64, bounds.Width / scale, bounds.Height / scale, _settings.TapDistance);
             if (match is { } found && (found.Gesture != TouchGesture.TwoFingerTap || _settings.TwoFingerRightClick))
                 _matched(found, bounds.Left + (int)Math.Round(found.FirstX * scale), bounds.Top + (int)Math.Round(found.FirstY * scale));

@@ -24,10 +24,16 @@ public partial class MainWindow
             if (Dispatcher.HasShutdownStarted) return;
             Dispatcher.BeginInvoke(() =>
             {
-                if (_disposed || generation != _gestureGeneration) return;
+                if (_disposed || _draggingFile || Environment.TickCount64 < _suppressFileGestureUntil || generation != _gestureGeneration) return;
                 try
                 {
-                    if (match.Gesture == TouchGesture.TwoFingerTap) GestureActionRunner.RightClick(x, y);
+                    if (match.Gesture == TouchGesture.TwoFingerTap)
+                    {
+                        // This list consumes touch locally and opens its shell menu directly.
+                        // Never inject a second mouse click over that same surface.
+                        if (IsFileTouchSurface(x, y)) return;
+                        GestureActionRunner.RightClick(x, y);
+                    }
                     else
                     {
                         var action = snapshot.ActionFor(match.Gesture);

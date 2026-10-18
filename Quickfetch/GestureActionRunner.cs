@@ -86,6 +86,14 @@ internal static class GestureActionRunner
         var move = new Input { Data = new InputData { Mouse = new MouseInput { X = (int)Math.Round((x - left) * 65535d / Math.Max(1, width - 1)), Y = (int)Math.Round((y - top) * 65535d / Math.Max(1, height - 1)), Flags = 0xC001 } } };
         Send(new[] { move, new Input { Data = new InputData { Mouse = new MouseInput { Flags = 8 } } }, new Input { Data = new InputData { Mouse = new MouseInput { Flags = 16 } } } });
     }
+    internal static void MoveDragPointer(int x, int y)
+    {
+        var left = GetSystemMetrics(76); var top = GetSystemMetrics(77);
+        var width = GetSystemMetrics(78); var height = GetSystemMetrics(79);
+        Send([new Input { Data = new InputData { Mouse = new MouseInput {
+            X = (int)Math.Round((x - left) * 65535d / Math.Max(1, width - 1)),
+            Y = (int)Math.Round((y - top) * 65535d / Math.Max(1, height - 1)), Flags = 0xC001 } } }]);
+    }
     private static Input Keyboard(ushort key, uint flags) => new() { Type = 1, Data = new InputData { Keyboard = new KeyboardInput { Key = key, Flags = flags | (key is >= 0x21 and <= 0x2E or 0x5B or 0x5C or 0x5D or 0x6F or 0xA3 or 0xA5 ? 1u : 0u) } } };
     private static void Send(Input[] input)
     {

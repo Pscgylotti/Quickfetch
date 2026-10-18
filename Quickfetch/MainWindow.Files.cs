@@ -19,7 +19,6 @@ public partial class MainWindow
     private readonly UsageStore _usage = new();
     private EverythingClient? _everything;
     private bool _fileMode;
-    private string _appQuery = "", _fileQuery = "";
     private DataTemplate _appTemplate = null!;
     private readonly DispatcherTimer _fileTimer = new() { Interval = TimeSpan.FromMilliseconds(140) };
     private CancellationTokenSource? _fileCancellation;
@@ -39,6 +38,7 @@ public partial class MainWindow
         {
             if (!IsVisible)
             {
+                _fileHold.Stop();
                 HideSystemKeyboard();
                 _caretBlink.Stop(); _fileTimer.Stop(); _fileCancellation?.Cancel(); _fileVersion++;
                 Results.ItemsSource = Array.Empty<ILauncherItem>(); _fileLimit = 500;
@@ -51,7 +51,8 @@ public partial class MainWindow
     private void Mode_Click(object sender, RoutedEventArgs e) => SwitchMode();
     private void SwitchMode()
     {
-        if (_fileMode) _fileQuery = Query.Text; else _appQuery = Query.Text;
+        _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
+        var transferredQuery = _fileMode ? "" : Query.Text;
         _fileMode = !_fileMode;
         _fileVersion++;
         _fileCancellation?.Cancel(); _fileTimer.Stop();
@@ -65,7 +66,7 @@ public partial class MainWindow
         ResultHint.Text = _fileMode ? "Enter 打开    Shift + Enter 所在目录    Tab 应用" : "↑ ↓ 选择    Enter 启动    Tab 文件";
         QuickKeyboard.SetFileMode(_fileMode);
         SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput);
-        Query.Text = _fileMode ? _fileQuery : _appQuery;
+        Query.Text = transferredQuery;
         UpdateResults();
         FocusSearch(); Query.SelectAll();
     }
@@ -162,6 +163,7 @@ public partial class MainWindow
     }
     private void ShowShellMenu(ILauncherItem item, Point point)
     {
+        if (_fileMode && item is FileItem) { ShowFileFlyout(item, point); return; }
         _choosingFolder = true;
         try
         {

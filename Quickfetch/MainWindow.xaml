@@ -4,21 +4,26 @@
         PreviewKeyDown="Window_PreviewKeyDown" Deactivated="Window_Deactivated">
   <Window.Resources>
     <DataTemplate x:Key="FileItemTemplate">
-      <Grid ToolTip="{Binding Path}">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="85"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
+      <Grid ToolTip="{Binding Path}" Width="{Binding FileRowsWidth, RelativeSource={RelativeSource AncestorType=Window}}" HorizontalAlignment="Left">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding FileNameWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FilePathWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileSizeWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileDateWidth, RelativeSource={RelativeSource AncestorType=Window}}"/></Grid.ColumnDefinitions>
         <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Medium" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,12,0"/>
         <TextBlock Grid.Column="1" Text="{Binding Location}" FontSize="12" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,12,0"/>
         <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="12" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
         <TextBlock Grid.Column="3" Text="{Binding DateText}" FontSize="12" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
       </Grid>
     </DataTemplate>
+    <Style x:Key="FileColumnGrip" TargetType="Thumb">
+      <Setter Property="Width" Value="28"/><Setter Property="MinHeight" Value="44"/><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Cursor" Value="SizeWE"/>
+      <Setter Property="ToolTip" Value="左右拖动调整列宽"/><Setter Property="AutomationProperties.Name" Value="调整相邻两列宽度"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb"><Border Background="Transparent"><Border x:Name="Grip" Width="2" Height="22" CornerRadius="1" Background="{DynamicResource Muted}" Opacity="0.4"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Opacity" Value="1"/></Trigger><Trigger Property="IsDragging" Value="True"><Setter TargetName="Grip" Property="Background" Value="{DynamicResource Accent}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style x:Key="HeaderAction" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
       <Setter Property="Height" Value="48"/><Setter Property="MinWidth" Value="52"/>
       <Setter Property="FontSize" Value="15"/><Setter Property="Padding" Value="12,8"/>
       <Setter Property="Margin" Value="3,0"/><Setter Property="Focusable" Value="False"/>
     </Style>
     <Style x:Key="ColumnAction" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Focusable" Value="False"/><Setter Property="Height" Value="36"/><Setter Property="FontSize" Value="12"/>
+      <Setter Property="Focusable" Value="False"/><Setter Property="Height" Value="44"/><Setter Property="FontSize" Value="12"/>
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="ColumnBackground" Background="Transparent" CornerRadius="6"><ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ColumnBackground" Property="Background" Value="{DynamicResource Selection}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
     </Style>
   </Window.Resources>
@@ -29,10 +34,10 @@
       <DockPanel Grid.Row="0" MouseLeftButtonDown="Header_Drag">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock x:Name="ModeLabel" Text="QUICKFETCH" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Accent}"/><Border Background="{DynamicResource Selection}" CornerRadius="5" Padding="7,2" Margin="12,0,0,0"><TextBlock Text="Win + S" FontSize="10" Foreground="{DynamicResource Accent}"/></Border></StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-          <Button x:Name="ModeButton" Style="{StaticResource HeaderAction}" Click="Mode_Click" ToolTip="搜索文件 · Tab" AutomationProperties.Name="切换应用与文件搜索"><TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons" FontSize="22"/></Button>
-          <Button x:Name="FolderButton" Style="{StaticResource HeaderAction}" Click="OpenFolder_Click" ToolTip="打开 .lnk 快捷方式文件夹" AutomationProperties.Name="打开快捷方式文件夹"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B7;" FontFamily="Segoe Fluent Icons" FontSize="22" Margin="0,0,8,0"/><TextBlock Text="文件夹" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="ModeButton" Style="{StaticResource HeaderAction}" Click="Mode_Click" ToolTip="搜索文件 · Tab" AutomationProperties.Name="切换应用与文件搜索"><TextBlock Text="&#xE8AB;" FontFamily="Segoe Fluent Icons" FontSize="22"/></Button>
+          <Button x:Name="FolderButton" Style="{StaticResource HeaderAction}" Click="OpenFolder_Click" ToolTip="打开 .lnk 快捷方式文件夹" AutomationProperties.Name="打开快捷方式文件夹"><TextBlock Text="&#xE8B7;" FontFamily="Segoe Fluent Icons" FontSize="22"/></Button>
           <Button x:Name="KeyboardToggle" Style="{StaticResource HeaderAction}" Click="Keyboard_Click" ToolTip="展开或收起触屏键盘" AutomationProperties.Name="切换触屏键盘"><TextBlock Text="&#xE765;" FontFamily="Segoe Fluent Icons" FontSize="24"/></Button>
-          <Button x:Name="SettingsButton" Style="{StaticResource HeaderAction}" Content="设置" Click="Settings_Click"/><Button x:Name="HideButton" Style="{StaticResource HeaderAction}" Content="—" FontSize="20" Click="Hide_Click" ToolTip="隐藏窗口 · Esc"/>
+          <Button x:Name="SettingsButton" Style="{StaticResource HeaderAction}" Click="Settings_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="22"/></Button><Button x:Name="HideButton" Style="{StaticResource HeaderAction}" Content="—" FontSize="20" Click="Hide_Click" ToolTip="隐藏窗口 · Esc"/>
         </StackPanel>
       </DockPanel>
       <Border Grid.Row="1" Margin="0,10,0,8" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12" Padding="14,9">
@@ -55,14 +60,17 @@
       </Border>
       <Grid Grid.Row="3">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-        <Grid x:Name="FileSortHeader" Visibility="Collapsed" Margin="10,0,10,4">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="85"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
-          <Button x:Name="NameSort" Style="{StaticResource ColumnAction}" Content="名称 ↑" Tag="0" Click="Sort_Click"/>
-          <Button x:Name="PathSort" Style="{StaticResource ColumnAction}" Grid.Column="1" Content="路径" Tag="1" Click="Sort_Click"/>
-          <Button x:Name="SizeSort" Style="{StaticResource ColumnAction}" Grid.Column="2" Content="大小" Tag="2" Click="Sort_Click"/>
+        <Grid x:Name="FileSortHeader" Visibility="Collapsed" Margin="10,0,24,4" SizeChanged="FileHeader_SizeChanged">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding FileNameWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FilePathWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileSizeWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileDateWidth, RelativeSource={RelativeSource AncestorType=Window}}"/></Grid.ColumnDefinitions>
+          <Button x:Name="NameSort" Margin="0,0,28,0" Style="{StaticResource ColumnAction}" Content="名称 ↑" Tag="0" Click="Sort_Click"/>
+          <Button x:Name="PathSort" Margin="0,0,28,0" Style="{StaticResource ColumnAction}" Grid.Column="1" Content="路径" Tag="1" Click="Sort_Click"/>
+          <Button x:Name="SizeSort" Margin="0,0,28,0" Style="{StaticResource ColumnAction}" Grid.Column="2" Content="大小" Tag="2" Click="Sort_Click"/>
+          <Thumb Grid.Column="0" Tag="0" Style="{StaticResource FileColumnGrip}" DragDelta="FileColumn_DragDelta" DragCompleted="FileColumn_DragCompleted" PreviewTouchDown="FileColumn_TouchDown" PreviewTouchMove="FileColumn_TouchMove" PreviewTouchUp="FileColumn_TouchUp" LostTouchCapture="FileColumn_LostTouchCapture"/>
+          <Thumb Grid.Column="1" Tag="1" Style="{StaticResource FileColumnGrip}" DragDelta="FileColumn_DragDelta" DragCompleted="FileColumn_DragCompleted" PreviewTouchDown="FileColumn_TouchDown" PreviewTouchMove="FileColumn_TouchMove" PreviewTouchUp="FileColumn_TouchUp" LostTouchCapture="FileColumn_LostTouchCapture"/>
+          <Thumb Grid.Column="2" Tag="2" Style="{StaticResource FileColumnGrip}" DragDelta="FileColumn_DragDelta" DragCompleted="FileColumn_DragCompleted" PreviewTouchDown="FileColumn_TouchDown" PreviewTouchMove="FileColumn_TouchMove" PreviewTouchUp="FileColumn_TouchUp" LostTouchCapture="FileColumn_LostTouchCapture"/>
           <Button x:Name="DateSort" Style="{StaticResource ColumnAction}" Grid.Column="3" Content="修改日期" Tag="6" Click="Sort_Click"/>
         </Grid>
-        <ListBox x:Name="Results" Grid.Row="1" AutomationProperties.Name="搜索结果" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.PanningMode="VerticalOnly" HorizontalContentAlignment="Stretch" MouseDoubleClick="Results_DoubleClick" PreviewMouseRightButtonUp="Results_RightClick" PreviewTouchDown="Results_TouchDown" PreviewTouchMove="Results_TouchMove" PreviewTouchUp="Results_TouchUp">
+        <ListBox x:Name="Results" Grid.Row="1" VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="搜索结果" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.PanningMode="VerticalOnly" HorizontalContentAlignment="Stretch" PreviewMouseLeftButtonDown="Results_FileMouseDown" PreviewMouseLeftButtonUp="Results_FileMouseUp" PreviewMouseMove="Results_FileMouseMove" MouseDoubleClick="Results_DoubleClick" PreviewMouseRightButtonUp="Results_RightClick" PreviewTouchDown="Results_TouchDown" PreviewTouchMove="Results_TouchMove" PreviewTouchUp="Results_TouchUp">
           <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="MinHeight" Value="48"/><Setter Property="Margin" Value="0,2"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="Row" CornerRadius="10" Background="Transparent" Padding="10,9"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Selection}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
           <ListBox.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="44"/><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions>
             <Grid Width="34" Height="34" HorizontalAlignment="Left">

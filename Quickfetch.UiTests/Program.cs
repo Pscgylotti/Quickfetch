@@ -30,6 +30,7 @@ internal static class Program
         PowerLifecycleChecks.Run(Check);
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
         var window = new MainWindow();
+        FileUiChecks.Run(window, Check, args.Contains("--integration"));
         Check(window.Icon is not null, "The launcher must expose the embedded Quickfetch window icon.");
         window.SetKeyboardPreference(true, showKeyboard: false);
         Check(GestureActionRunner.ParseShortcut("Ctrl + Alt + T").SequenceEqual(new ushort[] { 0x11, 0x12, 0x54 }), "Shortcut parser must preserve modifier/key order.");
@@ -157,7 +158,7 @@ internal static class Program
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(((FrameworkElement)window.FindName("FileSortHeader")).Visibility == Visibility.Collapsed, "Switching back must restore app mode.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Check(query.Text == "文件名 .txt", "Each mode must retain its own query.");
+        Check(query.Text == "", "Returning through app mode must clear the previous file query.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         // Show this test window briefly to verify unfocused text geometry and custom caret.
         var choosing = typeof(MainWindow).GetField("_choosingFolder", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;

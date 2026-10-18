@@ -51,6 +51,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         InitializeModes();
+        InitializeFileColumns();
         LauncherSurface.RenderTransform = _openScale;
         _initialized = true;
         FolderLabel.Text = _settings.Folder;
@@ -95,7 +96,8 @@ public partial class MainWindow : Window
 
     public void ShowLauncher()
     {
-        if (_disposed) return;
+        if (_disposed || _draggingFile) return;
+        if (!IsVisible) SettingsPanel.Visibility = Visibility.Collapsed;
         SetTouchKeyboard(TabletPosture.IsTablet);
         if (!IsVisible)
         {
@@ -311,7 +313,7 @@ public partial class MainWindow : Window
         QuickKeyboard.Visibility = builtInVisible ? Visibility.Visible : Visibility.Collapsed;
         KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? "展开或收起触屏键盘" : "打开 Windows 系统触摸键盘";
         var center = Left + Width / 2;
-        Width = Math.Min(_fileMode ? 980 : 660, SystemParameters.WorkArea.Width - 24);
+        Width = Math.Min(_fileMode ? 784 : 660, SystemParameters.WorkArea.Width - 24);
         if (IsVisible) Left = Math.Clamp(center - Width / 2, SystemParameters.WorkArea.Left + 12, SystemParameters.WorkArea.Right - Width - 12);
         Height = Math.Min(builtInVisible ? 750 : 490, SystemParameters.WorkArea.Height - 24);
         if (IsVisible) Top = Math.Clamp(Top, SystemParameters.WorkArea.Top + 12, SystemParameters.WorkArea.Bottom - Height - 12);
@@ -412,6 +414,7 @@ public partial class MainWindow : Window
     }
     private void Results_TouchDown(object sender, TouchEventArgs e)
     {
+        if (FileResultsTouchDown(e)) return;
         if (_listTouchId is int previous && !Results.TouchesOver.Any(touch => touch.Id == previous)) _listTouchId = null;
         if (_listTouchId is not null) { _listTouchMoved = true; _doubleTap.Reset(); return; }
         _listTouchId = e.TouchDevice.Id;
@@ -421,11 +424,13 @@ public partial class MainWindow : Window
     }
     private void Results_TouchMove(object sender, TouchEventArgs e)
     {
+        if (FileResultsTouchMove(e)) return;
         if (_listTouchId != e.TouchDevice.Id) return;
         if ((e.GetTouchPoint(Results).Position - _listTouchStart).Length > 12) { _listTouchMoved = true; _doubleTap.Reset(); }
     }
     private void Results_TouchUp(object sender, TouchEventArgs e)
     {
+        if (FileResultsTouchUp(e)) return;
         if (_listTouchId != e.TouchDevice.Id) return;
         _listTouchId = null;
         var item = _listTouchItem;
@@ -444,6 +449,7 @@ public partial class MainWindow : Window
     }
     private void Window_Deactivated(object? sender, EventArgs e)
     {
+        _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null; _columnTouch = null;
         _doubleTap.Reset(); _listTouchId = null; _listTouchItem = null;
         if (!_choosingFolder) Hide();
     }
@@ -489,6 +495,7 @@ public partial class MainWindow : Window
     {
         if (_disposed) return;
         _disposed = true;
+        _fileHold.Stop();
         HideSystemKeyboard();
         ++_gestureGeneration; _gestures?.Dispose(); _gestures = null;
         _fileTimer.Stop(); _caretBlink.Stop(); _fileCancellation?.Cancel(); _everything?.Dispose();

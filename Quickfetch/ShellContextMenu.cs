@@ -6,6 +6,19 @@ namespace Quickfetch;
 
 public static class ShellContextMenu
 {
+    public static void InvokeVerb(IntPtr owner, string path, string verb)
+    {
+        using var menu = new Session(owner, path);
+        var narrow = Marshal.StringToHGlobalAnsi(verb);
+        var wide = Marshal.StringToHGlobalUni(verb);
+        try
+        {
+            var command = new CommandInfo { Size = Marshal.SizeOf<CommandInfo>(), Mask = 0x4000,
+                Owner = owner, Verb = narrow, VerbW = wide, Show = 1 };
+            Marshal.ThrowExceptionForHR(menu.Context.InvokeCommand(ref command));
+        }
+        finally { Marshal.FreeHGlobal(narrow); Marshal.FreeHGlobal(wide); }
+    }
     public static (bool Invoked, string Verb) Show(IntPtr owner, string path, int x, int y)
     {
         using var menu = new Session(owner, path);
