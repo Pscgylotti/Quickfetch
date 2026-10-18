@@ -68,10 +68,10 @@ public partial class GestureSettingsWindow : Window
         private readonly StackPanel _keys = new(), _launch = new();
         public ActionEditor(string label, GestureAction action)
         {
-            Label = label; Margin = new Thickness(0, 0, 0, 12); Padding = new Thickness(14); CornerRadius = new CornerRadius(10);
-            SetResourceReference(BackgroundProperty, "Panel");
+            Label = label; Margin = new Thickness(0, 0, 0, 10); Padding = new Thickness(14, 12, 14, 14); CornerRadius = new CornerRadius(10);
+            SetResourceReference(BackgroundProperty, "Panel"); SetResourceReference(BorderBrushProperty, "Line"); BorderThickness = new Thickness(1);
             var content = new StackPanel(); Child = content;
-            content.Children.Add(new TextBlock { Text = label, FontSize = 15, FontWeight = FontWeights.SemiBold });
+            content.Children.Add(new TextBlock { Text = label, FontSize = 14, FontWeight = FontWeights.SemiBold });
             content.Children.Add(_kind); content.Children.Add(_keys); content.Children.Add(_launch);
             _shortcut.Text = action.Shortcut;
             _shortcut.PreviewKeyDown += (_, e) =>
@@ -93,7 +93,8 @@ public partial class GestureSettingsWindow : Window
             presets.SelectionChanged += (_, _) => { if (presets.SelectedIndex > 0) _shortcut.Text = (string)presets.SelectedItem; };
             _keys.Children.Add(presets);
             _program.Text = action.Program; _arguments.Text = action.Arguments;
-            var row = new DockPanel(); var browse = new Button { Content = "浏览…", MinHeight = 40, Margin = new Thickness(8, 8, 0, 0) };
+            var row = new DockPanel(); var browse = new Button { Content = "浏览…", MinHeight = 42, Margin = new Thickness(8, 8, 0, 0), BorderThickness = new Thickness(1) };
+            browse.SetResourceReference(ForegroundProperty, "Ink"); browse.SetResourceReference(BorderBrushProperty, "Line");
             browse.Click += (_, _) =>
             {
                 var picker = new OpenFileDialog { Title = "选择要启动的程序", Filter = "程序 / 快捷方式|*.exe;*.lnk;*.bat;*.cmd", DereferenceLinks = false };

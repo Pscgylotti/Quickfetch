@@ -30,7 +30,7 @@ internal static class FileResultIcons
     {
         var result = new Dictionary<string, ImageSource>(StringComparer.Ordinal);
         foreach (var (kind, color, badge) in new[] {
-            ("folder", "#F4C75A", ""), ("file", "#8E9EB4", ""),
+            ("folder", "#F5BD45", ""), ("file", "#8E9EB4", ""),
             ("document", "#4187D8", "TXT"), ("pdf", "#D85862", "PDF"),
             ("image", "#A271D6", "IMG"), ("video", "#7C79DA", "VID"),
             ("audio", "#319CA9", "SND"), ("archive", "#C78B39", "ZIP"),
@@ -41,26 +41,34 @@ internal static class FileResultIcons
             using (var dc = drawing.Open())
             {
                 dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, 32, 32));
-                var accent = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+                var tone = (Color)ColorConverter.ConvertFromString(color);
+                var accent = new SolidColorBrush(tone);
                 if (kind == "folder")
                 {
-                    dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(187, 137, 43)), null, Geometry.Parse("M2,7 L13,7 L16,11 L29,11 L29,28 L3,28 Z"));
-                    dc.DrawGeometry(accent, null, Geometry.Parse("M2,13 L30,13 L28,29 L4,29 Z"));
+                    // Back sheet with tab, then a lighter front pocket lit from the top.
+                    dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(214, 158, 46)), null, Geometry.Parse("M3,8 A2,2 0 0 1 5,6 L11.6,6 A2,2 0 0 1 13,6.6 L15,8.6 L27,8.6 A2,2 0 0 1 29,10.6 L29,25 A2,2 0 0 1 27,27 L5,27 A2,2 0 0 1 3,25 Z"));
+                    var front = new LinearGradientBrush(Color.FromRgb(255, 214, 112), tone, 90);
+                    dc.DrawRoundedRectangle(front, null, new Rect(3, 11.5, 26, 15.5), 2, 2);
+                    dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(150, 255, 240, 196)), 1), new Point(4.5, 12.5), new Point(27.5, 12.5));
                 }
                 else
                 {
-                    var outline = new Pen(new SolidColorBrush(Color.FromRgb(155, 172, 194)), 1);
-                    dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(233, 240, 249)), outline, Geometry.Parse("M7,2 L21,2 L28,9 L28,29 L7,29 Z"));
-                    dc.DrawGeometry(null, outline, Geometry.Parse("M21,2 L21,9 L28,9"));
+                    // Rounded page with a soft folded corner; the type reads from a colored pill.
+                    var outline = new Pen(new SolidColorBrush(Color.FromRgb(170, 184, 204)), 1);
+                    dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(247, 249, 252)), outline, Geometry.Parse("M9,2.5 L19.5,2.5 L26.5,9.5 L26.5,27 A2.5,2.5 0 0 1 24,29.5 L9,29.5 A2.5,2.5 0 0 1 6.5,27 L6.5,5 A2.5,2.5 0 0 1 9,2.5 Z"));
+                    dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(222, 229, 239)), outline, Geometry.Parse("M19.5,2.5 L19.5,7.5 A2,2 0 0 0 21.5,9.5 L26.5,9.5 Z"));
                     if (badge.Length > 0)
                     {
-                        dc.DrawRoundedRectangle(accent, null, new Rect(2, 15, 28, 13), 3, 3);
+                        dc.DrawRoundedRectangle(accent, null, new Rect(3, 16, 22, 10.5), 2.5, 2.5);
                         var text = new FormattedText(badge, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                            new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), 9, Brushes.White, 1);
-                        dc.DrawGeometry(Brushes.White, null, text.BuildGeometry(new Point(16 - text.Width / 2, 21.5 - text.Height / 2)));
+                            new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 7.5, Brushes.White, 1);
+                        dc.DrawGeometry(Brushes.White, null, text.BuildGeometry(new Point(14 - text.Width / 2, 21.25 - text.Height / 2)));
                     }
                     else
-                        foreach (var y in new[] { 15, 19, 23 }) dc.DrawLine(new Pen(accent, 1.4), new Point(12, y), new Point(23, y));
+                    {
+                        var line = new Pen(accent, 1.5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+                        foreach (var (y, end) in new[] { (15.5, 22.5), (19.5, 22.5), (23.5, 18.5) }) dc.DrawLine(line, new Point(10.5, y), new Point(end, y));
+                    }
                 }
             }
             drawing.Freeze(); var image = new DrawingImage(drawing); image.Freeze(); result.Add(kind, image);

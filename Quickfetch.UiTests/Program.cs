@@ -66,11 +66,11 @@ internal static class Program
         var gestureEncoder = new PngBitmapEncoder(); gestureEncoder.Frames.Add(BitmapFrame.Create(gesturePreview));
         using (var imageFile = File.Create(Path.Combine(Path.GetTempPath(), "quickfetch-gesture-settings.png"))) gestureEncoder.Save(imageFile);
         gestureDialog.Close();
-        var themeNames = new[] { "Ink", "Muted", "Surface", "Panel", "Accent", "Selection", "Line" };
+        var themeNames = new[] { "Ink", "Muted", "Surface", "Panel", "Accent", "OnAccent", "Selection", "Line", "Hover", "Pressed" };
         var originalTheme = themeNames.ToDictionary(name => name, name => app.Resources[name]);
         try
         {
-            foreach (var (name, color) in new[] { ("Ink", "#EDF2FF"), ("Muted", "#ADB9CD"), ("Surface", "#10171C27"), ("Panel", "#28FFFFFF"), ("Accent", "#9CC7FF"), ("Selection", "#66567FAF"), ("Line", "#38FFFFFF") })
+            foreach (var (name, color) in new[] { ("Ink", "#EDF2FF"), ("Muted", "#ADB9CD"), ("Surface", "#10171C27"), ("Panel", "#28FFFFFF"), ("Accent", "#9CC7FF"), ("OnAccent", "#0F1E33"), ("Selection", "#55567FAF"), ("Line", "#30FFFFFF"), ("Hover", "#16FFFFFF"), ("Pressed", "#0CFFFFFF") })
                 app.Resources[name] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
             var darkDialog = new GestureSettingsWindow(new GestureSettings());
             var display = (ComboBox)darkDialog.FindName("DisplayPicker");

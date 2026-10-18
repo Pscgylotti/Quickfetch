@@ -103,5 +103,6 @@ pwsh -File scripts/Package.ps1
 
 - **[Pscgylotti](https://github.com/Pscgylotti)** — 需求、设计决策、设备验证与维护。
 - **Codex (OpenAI)** — AI 贡献者，参与实现、重构、检查及发布准备；发布经维护者授权。
+- **Claude (Anthropic)** — AI 贡献者，参与界面、图标与动效设计优化及触屏可用性检查。
 
 详见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。MIT License。

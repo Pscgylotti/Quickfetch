@@ -21,6 +21,7 @@ public partial class MainWindow
         CompositionTarget.Rendering -= RenderModeTransition;
         _modeTransitionActive = false;
         ResultsSurface.BeginAnimation(OpacityProperty, null); ResultsSurface.Opacity = 1;
+        if (ResultsSurface.RenderTransform is TranslateTransform shift) { shift.BeginAnimation(TranslateTransform.YProperty, null); shift.Y = 0; }
     }
     private void AnimateModeTransition()
     {
@@ -34,13 +35,20 @@ public partial class MainWindow
         _modeEndLeft = Math.Clamp(_modeStart.Left + (_modeStart.Right - _modeStart.Left - _modeEndWidth) / 2,
             work.Left + margin, Math.Max(work.Left + margin, work.Right - margin - _modeEndWidth));
         _modeLastWidth = _modeStart.Right - _modeStart.Left; _modeLastLeft = _modeStart.Left;
-        _modeStarted = Stopwatch.GetTimestamp(); _modeTransitionActive = true;
+        // The clock starts on the first composed frame: switching re-templates the results, and
+        // that first layout/render pass can take longer than the whole resize. Timing from the
+        // click would skip most of the curve and read as a jump.
+        _modeStarted = 0; _modeTransitionActive = true;
         CompositionTarget.Rendering += RenderModeTransition;
-        ResultsSurface.BeginAnimation(OpacityProperty, new DoubleAnimation(.3, 1, TimeSpan.FromMilliseconds(140)) { FillBehavior = FillBehavior.Stop });
+        ResultsSurface.BeginAnimation(OpacityProperty, new DoubleAnimation(.2, 1, TimeSpan.FromMilliseconds(160)) { FillBehavior = FillBehavior.Stop });
+        if (ResultsSurface.RenderTransform is TranslateTransform shift)
+            shift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(6, 0, TimeSpan.FromMilliseconds(200))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
     }
     private void RenderModeTransition(object? sender, EventArgs args)
     {
         if (!_modeTransitionActive) return;
+        if (_modeStarted == 0) { _modeStarted = Stopwatch.GetTimestamp(); return; }
         var progress = Math.Clamp(Stopwatch.GetElapsedTime(_modeStarted).TotalMilliseconds / 180, 0, 1);
         var eased = 1 - Math.Pow(1 - progress, 3);
         var width = (int)Math.Round((_modeStart.Right - _modeStart.Left) + (_modeEndWidth - (_modeStart.Right - _modeStart.Left)) * eased);
@@ -53,7 +61,9 @@ public partial class MainWindow
             _modeLastWidth = width; _modeLastLeft = left;
         }
         if (progress < 1) return;
-        StopModeTransition(); ScheduleBackdrop();
+        // WPF can keep Width from an intermediate WM_SIZE even though the HWND reached the
+        // target; re-sync it (same physical size, so no visible change) for later centering.
+        StopModeTransition(); Width = _modeTargetWidth; ScheduleBackdrop();
     }
     [StructLayout(LayoutKind.Sequential)] private struct ModeRect { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll", EntryPoint = "GetWindowRect")] private static extern bool GetModeBounds(IntPtr window, out ModeRect rect);

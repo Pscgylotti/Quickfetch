@@ -124,7 +124,7 @@ internal static class FileUiChecks
         var samples = new List<NativeRect>();
         EventHandler sample = (_, _) => { GetWindowRect(new WindowInteropHelper(window).Handle, out var bounds); samples.Add(bounds); };
         CompositionTarget.Rendering += sample;
-        PumpAnimation(); CompositionTarget.Rendering -= sample;
+        PumpAnimation(window); CompositionTarget.Rendering -= sample;
         check(Math.Abs(window.Width - 660) < 1, "The native resize must finish at the app-mode width.");
         if (SystemParameters.ClientAreaAnimation && samples.Count > 1)
         {
@@ -134,7 +134,7 @@ internal static class FileUiChecks
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        PumpAnimation();
+        PumpAnimation(window);
         check(Math.Abs(window.Width - 784) < .1 && !window.HasAnimatedProperties && ((UIElement)window.FindName("ResultsSurface")).Opacity == 1, "Rapid reverse switching must finish at the correct width, clear animation clocks and restore result opacity.");
         var inside = window.PointToScreen(new Point(window.ActualWidth / 2, window.ActualHeight / 2));
         choosing.SetValue(window, false);
@@ -156,11 +156,19 @@ internal static class FileUiChecks
         window.Hide(); mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); query.Text = "";
         choosing.SetValue(window, false);
     }
-    private static void PumpAnimation()
+    // Pumps at least 260 ms and then until the native resize reports completion (bounded), so a slow
+    // first composed frame on a loaded machine cannot cut the 180 ms transition short.
+    private static void PumpAnimation(MainWindow window)
     {
+        var active = typeof(MainWindow).GetField("_modeTransitionActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var started = System.Diagnostics.Stopwatch.StartNew();
         var frame = new System.Windows.Threading.DispatcherFrame();
-        var finish = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
-        finish.Tick += (_, _) => { finish.Stop(); frame.Continue = false; };
+        var finish = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
+        finish.Tick += (_, _) =>
+        {
+            if (started.ElapsedMilliseconds < 260 || ((bool)active.GetValue(window)! && started.ElapsedMilliseconds < 1500)) return;
+            finish.Stop(); frame.Continue = false;
+        };
         finish.Start(); System.Windows.Threading.Dispatcher.PushFrame(frame);
     }
     private static void Save(FrameworkElement root, string name, int width, int height)

@@ -55,10 +55,7 @@ public partial class MainWindow
     private void Mode_Click(object sender, RoutedEventArgs e) => SwitchMode();
     private void SwitchMode()
     {
-        _openScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, null);
-        _openScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, null);
-        _openScale.ScaleX = _openScale.ScaleY = 1;
-        LauncherSurface.BeginAnimation(OpacityProperty, null); LauncherSurface.Opacity = 1;
+        ResetOpenAnimation();
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
         var transferredQuery = _fileMode ? "" : Query.Text;
         _fileMode = !_fileMode;
@@ -69,7 +66,7 @@ public partial class MainWindow
         Results.ItemTemplate = _fileMode ? (DataTemplate)FindResource("FileItemTemplate") : _appTemplate;
         ModeLabel.Text = _fileMode ? "文件 · EVERYTHING" : "QUICKFETCH";
         ModeButton.ToolTip = _fileMode ? "切换到应用检索 · Tab" : "搜索文件 · Tab";
-        ModeButton.SetResourceReference(BackgroundProperty, _fileMode ? "Selection" : "Surface");
+        SetToggled(ModeButton, _fileMode);
         Placeholder.Text = _fileMode ? "搜索文件名、路径或 Everything 语法" : "输入英文、数字或拼音，快速启动";
         ResultHint.Text = _fileMode ? "Enter 打开    Shift + Enter 所在目录    Tab 应用" : "↑ ↓ 选择    Enter 启动    Tab 文件";
         QuickKeyboard.SetFileMode(_fileMode);

@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private ILauncherItem? _listTouchItem;
     private bool _listTouchMoved;
     private readonly ScaleTransform _openScale = new(1, 1);
+    private readonly TranslateTransform _openShift = new();
     public string BackdropMode { get; private set; } = "Pending";
     public MainWindow() : this(Settings.Load()) { }
     internal MainWindow(Settings settings, Action<Settings>? saveSettings = null)
@@ -56,7 +57,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         InitializeModes();
         InitializeFileColumns();
-        LauncherSurface.RenderTransform = _openScale;
+        LauncherSurface.RenderTransform = new TransformGroup { Children = { _openScale, _openShift } };
         _initialized = true;
         FolderLabel.Text = _settings.Folder;
         FolderLabel.ToolTip = _settings.Folder;
@@ -101,7 +102,7 @@ public partial class MainWindow : Window
     public void ShowLauncher()
     {
         if (_disposed || _draggingFile) return;
-        if (!IsVisible) SettingsPanel.Visibility = Visibility.Collapsed;
+        if (!IsVisible) { SettingsPanel.Visibility = Visibility.Collapsed; SetToggled(SettingsButton, false); }
         SetTouchKeyboard(TabletPosture.IsTablet);
         if (!IsVisible)
         {
@@ -121,24 +122,55 @@ public partial class MainWindow : Window
     }
     private void PrepareOpenAnimation()
     {
+        ResetOpenAnimation();
+        if (!SystemParameters.ClientAreaAnimation) return;
+        LauncherSurface.Opacity = 0;
+        _openScale.ScaleX = _openScale.ScaleY = 0.97;
+        _openShift.Y = 10;
+    }
+    private void ResetOpenAnimation()
+    {
         LauncherSurface.BeginAnimation(UIElement.OpacityProperty, null);
         _openScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         _openScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        LauncherSurface.Opacity = 0;
-        _openScale.ScaleX = _openScale.ScaleY = 0.92;
+        _openShift.BeginAnimation(TranslateTransform.YProperty, null);
+        LauncherSurface.Opacity = 1;
+        _openScale.ScaleX = _openScale.ScaleY = 1;
+        _openShift.Y = 0;
     }
     private void PlayOpenAnimation()
     {
         // Animate WPF content, keeping the native Acrylic HWND and its opacity intact.
-        LauncherSurface.Opacity = 1;
-        _openScale.ScaleX = _openScale.ScaleY = 1;
-        if (!IsVisible || _disposed) return;
-        var scale = new DoubleAnimation(0.92, 1, TimeSpan.FromMilliseconds(180))
-        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop };
+        var animate = LauncherSurface.Opacity < 1;
+        ResetOpenAnimation();
+        if (!animate || !IsVisible || _disposed) return;
+        // A short rise with a strong deceleration settles like Windows 11 flyouts.
+        var ease = new ExponentialEase { Exponent = 6, EasingMode = EasingMode.EaseOut };
+        var motion = TimeSpan.FromMilliseconds(260);
+        var scale = new DoubleAnimation(0.97, 1, motion) { EasingFunction = ease, FillBehavior = FillBehavior.Stop };
         _openScale.BeginAnimation(ScaleTransform.ScaleXProperty, scale);
         _openScale.BeginAnimation(ScaleTransform.ScaleYProperty, scale);
+        _openShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, motion) { EasingFunction = ease, FillBehavior = FillBehavior.Stop });
         LauncherSurface.BeginAnimation(UIElement.OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(130)) { FillBehavior = FillBehavior.Stop });
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140)) { FillBehavior = FillBehavior.Stop });
+    }
+    // Revealed panels fade in while sliding a few DIP into place; collapsing stays instant.
+    private static void Reveal(FrameworkElement element, double offset)
+    {
+        if (!Motion.Enabled) return;
+        Motion.Play(Motion.Transform<TranslateTransform>(element), TranslateTransform.YProperty, offset, 0, 200);
+        Motion.Play(element, OpacityProperty, 0, 1, 160);
+    }
+    private void ResultRow_Selected(object sender, RoutedEventArgs e)
+    {
+        if (!Motion.Enabled || sender is not ListBoxItem row || row.Template?.FindName("Indicator", row) is not UIElement pill || row.Template.FindName("SelectedLayer", row) is not UIElement layer) return;
+        Motion.Play(layer, OpacityProperty, 0, 1, 120);
+        Motion.Play(Motion.Transform<ScaleTransform>(pill), ScaleTransform.ScaleYProperty, 0.2, 1, 240);
+    }
+    private static void SetToggled(Button button, bool on)
+    {
+        if (on) { button.SetResourceReference(BackgroundProperty, "Selection"); button.SetResourceReference(ForegroundProperty, "Accent"); }
+        else { button.ClearValue(BackgroundProperty); button.ClearValue(ForegroundProperty); }
     }
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -315,7 +347,10 @@ public partial class MainWindow : Window
             if (IsVisible) Keyboard.Focus(LauncherSurface);
         }
         var builtInVisible = visible && _settings.UseBuiltInKeyboard;
+        var revealKeyboard = builtInVisible && IsVisible && QuickKeyboard.Visibility != Visibility.Visible;
         QuickKeyboard.Visibility = builtInVisible ? Visibility.Visible : Visibility.Collapsed;
+        SetToggled(KeyboardToggle, builtInVisible);
+        if (revealKeyboard) Reveal(QuickKeyboard, 16);
         KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? "展开或收起触屏键盘" : "打开 Windows 系统触摸键盘";
         var center = Left + Width / 2;
         var targetWidth = Math.Min(_fileMode ? 784 : 660, SystemParameters.WorkArea.Width - 24);
@@ -325,7 +360,7 @@ public partial class MainWindow : Window
             Width = targetWidth;
             if (IsVisible) Left = Math.Clamp(center - Width / 2, SystemParameters.WorkArea.Left + 12, SystemParameters.WorkArea.Right - Width - 12);
         }
-        Height = Math.Min(builtInVisible ? 750 : 490, SystemParameters.WorkArea.Height - 24);
+        Height = Math.Min(builtInVisible ? 720 : 470, SystemParameters.WorkArea.Height - 24);
         if (IsVisible) Top = Math.Clamp(Top, SystemParameters.WorkArea.Top + 12, SystemParameters.WorkArea.Bottom - Height - 12);
         ScheduleBackdrop();
         ScheduleCaret();
@@ -467,7 +502,14 @@ public partial class MainWindow : Window
     private void Header_Drag(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed && e.OriginalSource is TextBlock) DragMove(); }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
     private void OpenFolder_Click(object sender, RoutedEventArgs e) => OpenShortcutFolder();
-    private void Settings_Click(object sender, RoutedEventArgs e) { SettingsPanel.Visibility = SettingsPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; FocusSearch(); }
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var open = SettingsPanel.Visibility != Visibility.Visible;
+        SettingsPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        SetToggled(SettingsButton, open);
+        if (open) Reveal(SettingsPanel, -8);
+        FocusSearch();
+    }
     private async void ChooseFolder_Click(object sender, RoutedEventArgs e)
     {
         _choosingFolder = true;
