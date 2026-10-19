@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private readonly Action<Settings> _saveSettings;
     private IReadOnlyList<ShortcutEntry> _entries = Array.Empty<ShortcutEntry>();
     private readonly ShortcutIconCache _iconCache = new();
+    private readonly RegisteredAppCatalog _registeredApps = new();
     private IReadOnlyDictionary<string, System.Windows.Media.ImageSource?> _icons = new Dictionary<string, System.Windows.Media.ImageSource?>();
     private GlobalShortcut? _shortcut;
     private Forms.NotifyIcon? _tray;
@@ -57,11 +58,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         InitializeModes();
         InitializeFileColumns();
+        InitializeFilePreview();
         LauncherSurface.RenderTransform = new TransformGroup { Children = { _openScale, _openShift } };
         _initialized = true;
         FolderLabel.Text = _settings.Folder;
         FolderLabel.ToolTip = _settings.Folder;
         RecursiveCheck.IsChecked = _settings.IncludeSubfolders;
+        RegisteredAppsCheck.IsChecked = _settings.IncludeRegisteredApps;
         AutostartCheck.IsChecked = Settings.AutoStart;
         BuiltInKeyboardCheck.IsChecked = _settings.UseBuiltInKeyboard;
         QuickKeyboard.KeyPressed += KeyboardKeyPressed;
@@ -102,6 +105,8 @@ public partial class MainWindow : Window
     public void ShowLauncher()
     {
         if (_disposed || _draggingFile) return;
+        if (_tray is not null && !_loading && _settings.IncludeRegisteredApps && _registeredApps.NeedsRefresh)
+            _ = RefreshCatalog(false, Array.Empty<string>());
         if (!IsVisible) { SettingsPanel.Visibility = Visibility.Collapsed; SetToggled(SettingsButton, false); }
         SetTouchKeyboard(TabletPosture.IsTablet);
         if (!IsVisible)
@@ -230,7 +235,22 @@ public partial class MainWindow : Window
             if (_disposed || version != _loadVersion) return;
             var icons = await _iconCache.LoadAsync(entries, forceIcons, _index.Items);
             if (_disposed || version != _loadVersion) return;
-            _icons = icons;
+            var mergedIcons = new Dictionary<string, ImageSource?>(icons, StringComparer.OrdinalIgnoreCase);
+            if (_settings.IncludeRegisteredApps)
+            {
+                try
+                {
+                    var registered = await _registeredApps.LoadAsync(entries, forceIcons);
+                    if (_disposed || version != _loadVersion) return;
+                    if (_settings.IncludeRegisteredApps)
+                    {
+                        entries = RegisteredAppCatalog.Merge(entries, registered.Entries, registered.ShortcutIds);
+                        foreach (var (path, icon) in registered.Icons) mergedIcons[path] = icon;
+                    }
+                }
+                catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("registered-apps", ex); }
+            }
+            _icons = mergedIcons;
             _entries = entries;
             _loading = false;
             if (IsVisible && !_fileMode) UpdateResults();
@@ -305,9 +325,9 @@ public partial class MainWindow : Window
         Results.ItemsSource = items;
         Results.SelectedIndex = matches.Count > 0 ? 0 : -1;
         if (items.Length > 0) Results.ScrollIntoView(items[0]);
-        EmptyMessage.Text = _loading ? "正在读取快捷方式…" : _entries.Count == 0 ? "此文件夹还没有可检索的 .lnk 快捷方式。\n支持中文、英文或数字名称，点击设置可选择文件夹。" : "没有匹配的快捷方式";
+        EmptyMessage.Text = _loading ? "正在读取应用…" : _entries.Count == 0 ? "没有可检索的应用。\n点击设置可选择快捷方式文件夹或启用 Windows 注册应用。" : "没有匹配的应用";
         EmptyMessage.Visibility = matches.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        Status.Text = Query.Text.Length == 0 ? $"{_entries.Count} 个快捷方式" : $"{matches.Count} / {_entries.Count} 个匹配";
+        Status.Text = Query.Text.Length == 0 ? $"{_entries.Count} 个应用入口" : $"{matches.Count} / {_entries.Count} 个匹配";
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -353,7 +373,8 @@ public partial class MainWindow : Window
         if (revealKeyboard) Reveal(QuickKeyboard, 16);
         KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? "展开或收起触屏键盘" : "打开 Windows 系统触摸键盘";
         var center = Left + Width / 2;
-        var targetWidth = Math.Min(_fileMode ? 784 : 660, SystemParameters.WorkArea.Width - 24);
+        FilePreviewPanel.Visibility = _fileMode && _settings.EnableFilePreview ? Visibility.Visible : Visibility.Collapsed;
+        var targetWidth = Math.Min(_fileMode ? 784 + (_settings.EnableFilePreview ? 316 : 0) : 660, SystemParameters.WorkArea.Width - 24);
         _modeTargetWidth = targetWidth;
         if (!(animateModeBounds && IsVisible && SystemParameters.ClientAreaAnimation))
         {
@@ -435,6 +456,13 @@ public partial class MainWindow : Window
         if (Results.SelectedItem is not ILauncherItem item) return;
         try
         {
+            if (item is ShortcutItem app && app.Match.Entry.IsRegisteredApp)
+            {
+                if (!_settings.IncludeRegisteredApps) throw new IOException("Windows 注册应用已关闭。");
+                if (openDirectory) Process.Start(new ProcessStartInfo("explorer.exe", "shell:AppsFolder") { UseShellExecute = true });
+                else { RegisteredAppCatalog.Activate(app.Match.Entry.AppUserModelId!); RecordUsage(item.Path); }
+                Hide(); return;
+            }
             if (item is ShortcutItem shortcut && !ShortcutCatalog.IsAllowed(shortcut.Match.Entry, _settings.ShortcutRoots, _settings.IncludeSubfolders))
                 throw new IOException("快捷方式已经移动或删除。请按 F5 刷新。");
             if (!File.Exists(item.Path) && !Directory.Exists(item.Path)) throw new IOException("文件已移动或删除，请刷新搜索。");
@@ -446,7 +474,7 @@ public partial class MainWindow : Window
             }
             Hide();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException or COMException)
         {
             SetMessage("无法启动：" + ex.Message);
             FocusSearch();
@@ -460,6 +488,7 @@ public partial class MainWindow : Window
     }
     private void Results_TouchDown(object sender, TouchEventArgs e)
     {
+        if (TouchScrollBar.Find(e.OriginalSource as DependencyObject) is not null) return;
         if (FileResultsTouchDown(e)) return;
         if (_listTouchId is int previous && !Results.TouchesOver.Any(touch => touch.Id == previous)) _listTouchId = null;
         if (_listTouchId is not null) { _listTouchMoved = true; _doubleTap.Reset(); return; }
@@ -470,12 +499,14 @@ public partial class MainWindow : Window
     }
     private void Results_TouchMove(object sender, TouchEventArgs e)
     {
+        if (TouchScrollBar.Find(e.TouchDevice.Captured as DependencyObject) is not null) return;
         if (FileResultsTouchMove(e)) return;
         if (_listTouchId != e.TouchDevice.Id) return;
         if ((e.GetTouchPoint(Results).Position - _listTouchStart).Length > 12) { _listTouchMoved = true; _doubleTap.Reset(); }
     }
     private void Results_TouchUp(object sender, TouchEventArgs e)
     {
+        if (TouchScrollBar.Find(e.TouchDevice.Captured as DependencyObject) is not null) return;
         if (FileResultsTouchUp(e)) return;
         if (_listTouchId != e.TouchDevice.Id) return;
         _listTouchId = null;
@@ -533,6 +564,12 @@ public partial class MainWindow : Window
         catch (Exception ex) { SetMessage(ex.Message); }
         FocusSearch();
     }
+    private async void RegisteredApps_Click(object sender, RoutedEventArgs e)
+    {
+        try { _settings.IncludeRegisteredApps = RegisteredAppsCheck.IsChecked == true; _saveSettings(_settings); await RefreshCatalog(); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(ex.Message); }
+        FocusSearch();
+    }
     private void Autostart_Click(object sender, RoutedEventArgs e)
     {
         try { Settings.AutoStart = AutostartCheck.IsChecked == true; }
@@ -548,6 +585,7 @@ public partial class MainWindow : Window
     {
         if (_disposed) return;
         _disposed = true;
+        CancelFilePreview();
         ConfigureOutsideClicks();
         StopModeTransition();
         _fileHold.Stop();

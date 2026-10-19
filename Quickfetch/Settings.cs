@@ -9,6 +9,8 @@ public sealed class Settings
 {
     public string Folder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
     public bool IncludeSubfolders { get; set; } = true;
+    public bool IncludeRegisteredApps { get; set; } = true;
+    public bool EnableFilePreview { get; set; }
     public bool UseBuiltInKeyboard { get; set; } = true;
     public double[] FileColumnWeights { get; set; } = [2.2, 3.0, 0.9, 1.6];
     public uint FileSort { get; set; } = 1;

@@ -6,10 +6,10 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 ## 下载与运行
 
-在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.2**：
+在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.3**：
 
-- `Quickfetch-0.0.2-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
-- `Quickfetch-0.0.2-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
+- `Quickfetch-0.0.3-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
+- `Quickfetch-0.0.3-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 启动后驻留托盘，**Win + S** 打开搜索。设置中可开启开机启动；默认关闭。托盘右键退出会释放快捷键。`--background` 仅在后台启动。
 
@@ -43,6 +43,14 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 监听使用事件驱动 Raw Input，无后台轮询或触摸轨迹文件。可选择触屏所在显示器。原始触摸不会被拦截，部分应用及 Windows 边缘面板仍可能响应；管理员窗口、锁屏和 UAC 安全桌面受系统限制。详见 [手势设置、识别规则与验证范围](docs/touch-gestures.md)。此功能包含在 0.0.2 及 main 分支，已有 0.0.1 发行包保持原样。
 
 ## 应用来源与排序
+
+设置中的 **包含 Windows 注册应用** 默认开启。后台枚举 `shell:AppsFolder` 中的打包应用，保存 AUMID、名称与图标缓存，支持 ChatGPT 等没有 `.lnk` 的入口；按 AUMID 调用 Windows 应用激活接口，沿用拼音与最近使用排序。同一 AUMID 已有快捷方式时保留快捷方式，不按同名粗略合并。启动时复核，之后打开窗口时至多每五分钟复核一次，安装/卸载后也可按 F5 立即刷新；没有后台定时轮询。
+
+设置中的 **启用文件预览** 默认关闭。开启后，文件模式在整体右侧增加预览栏：文本显示开头最多 32 KiB；图片预览与视频帧限制为 640×480；音频显示封面及可用的专辑、采样率、时长、比特率等信息；EXE/DLL 显示产品、公司与版本。文件夹仅显示元数据，不递归读取。未知类型显示基础信息，Windows 支持时显示缩略图。
+
+媒体优先使用 PATH 中已有的 FFmpeg/FFprobe（不下载、不捆绑），获取视频首个可解码帧、音频内嵌封面和详细信息；没有工具时退回 Windows 缩略图和属性，缩略图不保证是视频首帧，格式支持取决于本机解码器。没有专辑封面时显示默认音乐图标。预览选择延迟 180ms 合并，切换、隐藏或关闭预览会取消旧请求；FFmpeg 子进程限时四秒，图片仅保留当前项，不建立全目录预览缓存。
+
+滚动条保留细滑块，触摸命中区域扩展至 32 DIP；触摸拖动独占滚动条输入并实时更新列表位置，避免与列表平移、双击或文件拖放混用。
 
 默认通过系统 Known Folder API 定位**当前用户开始菜单**，并合并**公共开始菜单**，递归读取 `.lnk`。自选目录会保留，可关闭递归，不使用开发电脑的绝对路径。
 

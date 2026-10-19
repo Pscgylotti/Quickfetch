@@ -42,7 +42,7 @@
   </Window.Resources>
   <WindowChrome.WindowChrome><WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="8" UseAeroCaptionButtons="False"/></WindowChrome.WindowChrome>
   <Border x:Name="LauncherSurface" RenderTransformOrigin="0.5,0.4" Focusable="True" KeyboardNavigation.IsTabStop="False" CornerRadius="8" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
-    <Grid Margin="16,8,16,10">
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid Margin="16,8,16,10">
       <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="26"/></Grid.RowDefinitions>
       <DockPanel Grid.Row="0" MouseLeftButtonDown="Header_Drag">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -78,7 +78,7 @@
           <DockPanel><Button DockPanel.Dock="Right" Style="{StaticResource SecondaryAction}" Content="选择文件夹" Click="ChooseFolder_Click"/><Button x:Name="FolderButton" DockPanel.Dock="Right" Style="{StaticResource SecondaryAction}" Content="打开当前文件夹" Click="OpenFolder_Click" Margin="0,0,6,0" ToolTip="打开 .lnk 快捷方式文件夹" AutomationProperties.Name="打开快捷方式文件夹"/>
             <TextBlock Text="&#xE8B7;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBlock x:Name="FolderLabel" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,10,0"/></DockPanel>
-          <WrapPanel Margin="0,4,0,0"><CheckBox x:Name="RecursiveCheck" Content="包含子文件夹" Click="Recursive_Click" Margin="0,0,24,0"/><CheckBox x:Name="AutostartCheck" Content="开机启动" Click="Autostart_Click" Margin="0,0,24,0"/><CheckBox x:Name="BuiltInKeyboardCheck" Content="使用 Quickfetch 内置键盘" Click="BuiltInKeyboard_Click" ToolTip="取消勾选后使用 Windows 系统触摸键盘"/></WrapPanel>
+          <WrapPanel Margin="0,4,0,0"><CheckBox x:Name="RecursiveCheck" Content="包含子文件夹" Click="Recursive_Click" Margin="0,0,24,0"/><CheckBox x:Name="RegisteredAppsCheck" Content="包含 Windows 注册应用" Click="RegisteredApps_Click" ToolTip="包括 ChatGPT 等没有 .lnk 的应用；按 F5 刷新" Margin="0,0,24,0"/><CheckBox x:Name="AutostartCheck" Content="开机启动" Click="Autostart_Click" Margin="0,0,24,0"/><CheckBox x:Name="FilePreviewCheck" Content="启用文件预览" Click="FilePreview_Click" Margin="0,0,24,0"/><CheckBox x:Name="BuiltInKeyboardCheck" Content="使用 Quickfetch 内置键盘" Click="BuiltInKeyboard_Click" ToolTip="取消勾选后使用 Windows 系统触摸键盘"/></WrapPanel>
           <Border Height="1" Background="{DynamicResource Line}" Margin="0,6,4,6"/>
           <DockPanel><Button Content="触屏手势…" Style="{StaticResource SecondaryAction}" Click="Gestures_Click" DockPanel.Dock="Right"/>
             <StackPanel VerticalAlignment="Center" Margin="0,0,10,0"><TextBlock x:Name="GestureStatus" Text="全局触屏手势" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="仅启动此文件夹中的 .lnk；右键托盘图标可退出程序。" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel></DockPanel>
@@ -87,7 +87,7 @@
       <Grid x:Name="ResultsSurface" Grid.Row="3">
         <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-        <Grid x:Name="FileSortHeader" Visibility="Collapsed" Margin="10,0,22,2" SizeChanged="FileHeader_SizeChanged">
+        <Grid x:Name="FileSortHeader" Visibility="Collapsed" Margin="10,0,42,2" SizeChanged="FileHeader_SizeChanged">
           <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding FileNameWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FilePathWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileSizeWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileDateWidth, RelativeSource={RelativeSource AncestorType=Window}}"/></Grid.ColumnDefinitions>
           <Button x:Name="NameSort" Margin="-8,0,28,0" Style="{StaticResource ColumnAction}" Content="名称 ↑" Tag="0" Click="Sort_Click"/>
           <Button x:Name="PathSort" Margin="-8,0,28,0" Style="{StaticResource ColumnAction}" Grid.Column="1" Content="路径" Tag="1" Click="Sort_Click"/>
@@ -97,7 +97,7 @@
           <Thumb Grid.Column="2" Tag="2" Style="{StaticResource FileColumnGrip}" DragDelta="FileColumn_DragDelta" DragCompleted="FileColumn_DragCompleted" PreviewTouchDown="FileColumn_TouchDown" PreviewTouchMove="FileColumn_TouchMove" PreviewTouchUp="FileColumn_TouchUp" LostTouchCapture="FileColumn_LostTouchCapture"/>
           <Button x:Name="DateSort" Margin="-8,0,0,0" Style="{StaticResource ColumnAction}" Grid.Column="3" Content="修改日期" Tag="6" Click="Sort_Click"/>
         </Grid>
-        <ListBox x:Name="Results" Grid.Row="1" VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="搜索结果" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.PanningMode="VerticalOnly" HorizontalContentAlignment="Stretch" PreviewMouseLeftButtonDown="Results_FileMouseDown" PreviewMouseLeftButtonUp="Results_FileMouseUp" PreviewMouseMove="Results_FileMouseMove" MouseDoubleClick="Results_DoubleClick" PreviewMouseRightButtonUp="Results_RightClick" PreviewTouchDown="Results_TouchDown" PreviewTouchMove="Results_TouchMove" PreviewTouchUp="Results_TouchUp">
+        <ListBox x:Name="Results" Grid.Row="1" VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="搜索结果" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.PanningMode="VerticalOnly" ScrollViewer.IsDeferredScrollingEnabled="False" HorizontalContentAlignment="Stretch" PreviewMouseLeftButtonDown="Results_FileMouseDown" PreviewMouseLeftButtonUp="Results_FileMouseUp" PreviewMouseMove="Results_FileMouseMove" MouseDoubleClick="Results_DoubleClick" PreviewMouseRightButtonUp="Results_RightClick" PreviewTouchDown="Results_TouchDown" PreviewTouchMove="Results_TouchMove" PreviewTouchUp="Results_TouchUp">
           <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="MinHeight" Value="48"/><Setter Property="Margin" Value="0,1"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><EventSetter Event="Selected" Handler="ResultRow_Selected"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
             <!-- Hover, selection and the accent pill fade/grow independently, so arrow-key moves glide. -->
             <Grid Background="Transparent">
@@ -137,6 +137,18 @@
       </Grid>
       <local:TouchKeyboard x:Name="QuickKeyboard" Grid.Row="4" Visibility="Collapsed" Margin="0,8,0,0"/>
       <DockPanel Grid.Row="5" Margin="4,4,4,0"><TextBlock x:Name="Status" DockPanel.Dock="Left" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/><Button x:Name="MoreResults" DockPanel.Dock="Left" Visibility="Collapsed" Content="加载更多" Click="More_Click" Focusable="False" FontSize="11" Foreground="{DynamicResource Accent}" Padding="8,0" Height="24" Margin="6,0,0,0"/><TextBlock x:Name="ResultHint" Text="↑ ↓ 选择    Enter 启动    Tab 文件" FontSize="11" Foreground="{DynamicResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel>
+    </Grid>
+    <Border x:Name="FilePreviewPanel" Grid.Column="1" Width="300" Margin="0,12,16,12" Padding="16" CornerRadius="10" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Visibility="Collapsed">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly" IsDeferredScrollingEnabled="False">
+        <StackPanel>
+          <TextBlock Text="预览" Foreground="{DynamicResource Accent}" FontSize="11" Margin="0,0,0,8"/>
+          <TextBlock x:Name="PreviewTitle" Text="文件预览" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,14"/>
+          <Image x:Name="PreviewImage" MaxWidth="252" MaxHeight="220" Stretch="Uniform" Visibility="Collapsed" Margin="0,0,0,14"/>
+          <TextBlock x:Name="PreviewDetails" Text="选择文件以预览" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" LineHeight="21"/>
+          <TextBlock x:Name="PreviewText" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap" Margin="0,16,0,0"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
     </Grid>
   </Border>
 </Window>

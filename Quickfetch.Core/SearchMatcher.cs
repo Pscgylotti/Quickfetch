@@ -4,11 +4,13 @@ namespace Quickfetch.Core;
 
 public sealed record ShortcutEntry(string Name, string Path)
 {
+    public bool IsRegisteredApp => Path.StartsWith("shell:AppsFolder\\", StringComparison.OrdinalIgnoreCase);
+    public string? AppUserModelId => IsRegisteredApp ? Path[17..] : null;
     private static readonly ConditionalWeakTable<ShortcutEntry, PinyinSearchKeys> KeyCache = new();
     internal PinyinSearchKeys Keys => KeyCache.GetValue(this, static entry => PinyinSearchKeys.Create(entry.Name));
     public string SearchName => Keys.Full;
     public string Initial => SearchName.Length == 0 ? "?" : SearchName[..1].ToUpperInvariant();
-    public string Directory => System.IO.Path.GetDirectoryName(Path) ?? "";
+    public string Directory => IsRegisteredApp ? "Windows 注册应用" : System.IO.Path.GetDirectoryName(Path) ?? "";
 }
 
 public sealed record SearchResult(ShortcutEntry Entry, int Tier, int Position, int SubstringLength,
