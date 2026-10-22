@@ -29,9 +29,9 @@ public sealed class EverythingClient : IDisposable
         foreach (var instance in new[] { "1.5a", "" })
         {
             server = FindWindow("EVERYTHING_TASKBAR_NOTIFICATION" + (instance.Length == 0 ? "" : "_(" + instance + ")"), null);
-            if (server != IntPtr.Zero) { Instance = instance.Length == 0 ? "默认" : instance; break; }
+            if (server != IntPtr.Zero) { Instance = instance.Length == 0 ? Loc.T("默认") : instance; break; }
         }
-        if (server == IntPtr.Zero) throw new IOException("未连接到 Everything。请先启动 Everything（支持 1.5a / 1.4）。");
+        if (server == IntPtr.Zero) throw new IOException(Loc.T("未连接到 Everything。请先启动 Everything（支持 1.5a / 1.4）。"));
         bool pinyinApplied = false;
         using var cancellation = token.Register(() => completion.TrySetCanceled(token));
         await Task.Run(() =>
@@ -47,7 +47,7 @@ public sealed class EverythingClient : IDisposable
                 Marshal.Copy(bytes, 0, memory, bytes.Length);
                 var data = new CopyData { Id = (UIntPtr)18, Size = bytes.Length, Data = memory };
                 if (SendMessageTimeout(server, 0x4A, _replyWindow, ref data, 2, 2000, out var accepted) == IntPtr.Zero || accepted == UIntPtr.Zero)
-                    completion.TrySetException(new IOException("Everything 没有接受查询，请检查其 IPC 接口是否启用。"));
+                    completion.TrySetException(new IOException(Loc.T("Everything 没有接受查询，请检查其 IPC 接口是否启用。")));
             }
             finally { Marshal.FreeHGlobal(memory); }
         }, token);
@@ -82,7 +82,7 @@ public sealed class EverythingClient : IDisposable
         if (id != _replyId || _pending is null) return true;
         try
         {
-            if (data.Data == IntPtr.Zero || data.Size < 20 || data.Size > 32 * 1024 * 1024) throw new InvalidDataException("Everything 返回数据大小无效。");
+            if (data.Data == IntPtr.Zero || data.Size < 20 || data.Size > 32 * 1024 * 1024) throw new InvalidDataException(Loc.T("Everything 返回数据大小无效。"));
             var bytes = new byte[data.Size];
             Marshal.Copy(data.Data, bytes, 0, bytes.Length);
             _pending.TrySetResult(EverythingProtocol.Parse(bytes));

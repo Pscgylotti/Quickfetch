@@ -27,9 +27,9 @@ public partial class MainWindow
                 if (!_disposed && !Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(ShowLauncher);
             });
         }
-        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("resume-shortcut", ex); SetMessage("唤醒后快捷键恢复失败：" + ex.Message); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("resume-shortcut", ex); SetMessage(Loc.T("唤醒后快捷键恢复失败：") + ex.Message); }
         try { ConfigureGestures(); }
-        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("resume-touch", ex); GestureStatus.Text = "唤醒后触屏监听恢复失败：" + ex.Message; }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("resume-touch", ex); GestureStatus.Text = Loc.T("唤醒后触屏监听恢复失败：") + ex.Message; }
         if (IsVisible) { ScheduleBackdrop(); ScheduleCaret(); if (_fileMode) QueueFileSearch(); }
     }
 }

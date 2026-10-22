@@ -36,6 +36,8 @@ public partial class MainWindow
         _fileTimer.Tick += async (_, _) => { _fileTimer.Stop(); await SearchFiles(); };
         Query.SelectionChanged += (_, _) => ScheduleCaret();
         Query.SizeChanged += (_, _) => ScheduleCaret();
+        Results.SelectionChanged += (_, _) => { if (_showingUrlHistory && Results.SelectedItem is UrlHistoryItem) _urlSelectionMoved = true; };
+        Results.PreviewMouseLeftButtonDown += (_, e) => { if (_showingUrlHistory && (ItemsControl.ContainerFromElement(Results, e.OriginalSource as DependencyObject) as ListBoxItem)?.Content is UrlHistoryItem) _urlSelectionMoved = true; };
         IsVisibleChanged += (_, _) =>
         {
             ConfigureOutsideClicks();
@@ -55,6 +57,7 @@ public partial class MainWindow
     private void Mode_Click(object sender, RoutedEventArgs e) => SwitchMode();
     private void SwitchMode()
     {
+        _urlMode = false; _showingUrlHistory = false; QuickKeyboard.SetUrlMode(false);
         ResetOpenAnimation();
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
         var transferredQuery = _fileMode ? "" : Query.Text;
@@ -64,11 +67,11 @@ public partial class MainWindow
         FileSortHeader.Visibility = _fileMode ? Visibility.Visible : Visibility.Collapsed;
         InstallEverythingButton.Visibility = Visibility.Collapsed;
         Results.ItemTemplate = _fileMode ? (DataTemplate)FindResource("FileItemTemplate") : _appTemplate;
-        ModeLabel.Text = _fileMode ? "文件 · EVERYTHING" : "QUICKFETCH";
-        ModeButton.ToolTip = _fileMode ? "切换到应用检索 · Tab" : "搜索文件 · Tab";
+        ModeLabel.Text = _fileMode ? Loc.T("文件 · EVERYTHING") : "QUICKFETCH";
+        ModeButton.ToolTip = _fileMode ? Loc.T("切换到应用检索 · Tab") : Loc.T("搜索文件 · Tab");
         SetToggled(ModeButton, _fileMode);
-        Placeholder.Text = _fileMode ? "搜索文件名、路径或 Everything 语法" : "输入英文、数字或拼音，快速启动";
-        ResultHint.Text = _fileMode ? "Enter 打开    Shift + Enter 所在目录    Tab 应用" : "↑ ↓ 选择    Enter 启动    Tab 文件";
+        Placeholder.Text = _fileMode ? Loc.T("搜索文件名、路径或 Everything 语法") : Loc.T("输入英文、数字或拼音，快速启动");
+        ResultHint.Text = _fileMode ? Loc.T("Enter 打开    Shift + Enter 所在目录    Tab 应用") : Loc.T("↑ ↓ 选择    Enter 启动    Tab 文件");
         QuickKeyboard.SetFileMode(_fileMode);
         SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput, animateModeBounds: true);
         Query.Text = transferredQuery;
@@ -82,25 +85,25 @@ public partial class MainWindow
         _fileCancellation?.Cancel(); _fileTimer.Stop();
         if (resetLimit) _fileLimit = 500;
         MoreResults.Visibility = Visibility.Collapsed;
-        if (DownloadManager.TryUrl(Query.Text, out _))
+        if (_urlMode || DownloadManager.TryUrl(Query.Text, out _))
         {
-            Results.ItemsSource = Array.Empty<FileItem>(); InstallEverythingButton.Visibility = Visibility.Collapsed;
-            EmptyMessage.Text = "按 Enter：网页在浏览器中打开，文件加入后台下载队列。";
-            EmptyMessage.Visibility = Visibility.Visible; Status.Text = "网址 · Enter 打开 / 下载"; return;
+            ShowUrlSuggestions(); return;
         }
+        _showingUrlHistory = false; QuickKeyboard.SetUrlMode(false);
+        Results.ItemTemplate = (DataTemplate)FindResource("FileItemTemplate"); FileSortHeader.Visibility = Visibility.Visible;
         if (!RefreshEverythingAvailability()) return;
         if (string.IsNullOrWhiteSpace(Query.Text))
         {
             Results.ItemsSource = Array.Empty<FileItem>();
-            EmptyMessage.Text = "输入文件名或路径，直接检索 Everything 索引。\n可使用空格、中文及 Everything 搜索语法。";
+            EmptyMessage.Text = Loc.T("输入文件名或路径，直接检索 Everything 索引。\n可使用空格、中文及 Everything 搜索语法。");
             EmptyMessage.Visibility = Visibility.Visible;
-            Status.Text = "文件搜索 · Everything";
+            Status.Text = Loc.T("文件搜索 · Everything");
             return;
         }
         // Clear stale results so Enter cannot accidentally open an old query's file.
         Results.ItemsSource = Array.Empty<FileItem>();
-        EmptyMessage.Text = "正在检索 Everything…"; EmptyMessage.Visibility = Visibility.Visible;
-        Status.Text = "正在搜索…";
+        EmptyMessage.Text = Loc.T("正在检索 Everything…"); EmptyMessage.Visibility = Visibility.Visible;
+        Status.Text = Loc.T("正在搜索…");
         _fileTimer.Start();
     }
     private async Task SearchFiles()
@@ -117,9 +120,9 @@ public partial class MainWindow
             _fileSort = page.Sort;
             Results.ItemsSource = items; Results.SelectedIndex = items.Length > 0 ? 0 : -1;
             if (items.Length > 0) Results.ScrollIntoView(items[0]);
-            EmptyMessage.Text = "没有找到匹配的文件";
+            EmptyMessage.Text = Loc.T("没有找到匹配的文件");
             EmptyMessage.Visibility = items.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-            Status.Text = $"{items.Length:N0} / {page.Total:N0} 个结果" + (_everything.PinyinApplied ? " · 含拼音匹配" : "");
+            Status.Text = Loc.F($"{items.Length:N0} / {page.Total:N0} 个结果") + (_everything.PinyinApplied ? Loc.T(" · 含拼音匹配") : "");
             MoreResults.Visibility = items.Length < page.Total ? Visibility.Visible : Visibility.Collapsed;
             UpdateSortLabels();
         }
@@ -129,7 +132,7 @@ public partial class MainWindow
             if (_disposed || !_fileMode || version != _fileVersion) return;
             AppDiagnostics.Current.Fault("file-search", ex);
             Results.ItemsSource = Array.Empty<FileItem>(); EmptyMessage.Text = ex.Message; EmptyMessage.Visibility = Visibility.Visible;
-            Status.Text = "Everything 未就绪";
+            Status.Text = Loc.T("Everything 未就绪");
             if (!EverythingClient.IsAvailable) RefreshEverythingAvailability();
         }
     }
@@ -144,12 +147,12 @@ public partial class MainWindow
     }
     private void UpdateSortLabels()
     {
-        foreach (var (button, column, label) in new[] { (NameSort, 0u, "名称"), (PathSort, 1u, "路径"), (SizeSort, 2u, "大小"), (DateSort, 6u, "修改日期") })
+        foreach (var (button, column, label) in new[] { (NameSort, 0u, Loc.T("名称")), (PathSort, 1u, Loc.T("路径")), (SizeSort, 2u, Loc.T("大小")), (DateSort, 6u, Loc.T("修改日期")) })
             button.Content = label + ((_fileSort - 1) / 2 == column ? (_fileSort % 2 == 1 ? " ↑" : " ↓") : "");
     }
     private void More_Click(object sender, RoutedEventArgs e)
     {
-        if (_fileLimit >= 5000) { SetMessage("已显示 5,000 项，请输入更精确的文件名或路径。"); return; }
+        if (_fileLimit >= 5000) { SetMessage(Loc.T("已显示 5,000 项，请输入更精确的文件名或路径。")); return; }
         _fileLimit += 500; QueueFileSearch(false); FocusSearch();
     }
     private bool RefreshEverythingAvailability()
@@ -160,24 +163,25 @@ public partial class MainWindow
         if (!available)
         {
             Results.ItemsSource = Array.Empty<FileItem>();
-            EmptyMessage.Text = "文件搜索不可用：未检测到运行中的 Everything。\n请安装或启动 Everything，然后按 F5 重试。";
+            EmptyMessage.Text = Loc.T("文件搜索不可用：未检测到运行中的 Everything。\n请安装或启动 Everything，然后按 F5 重试。");
             EmptyMessage.Visibility = Visibility.Visible;
-            Status.Text = "文件搜索不可用";
+            Status.Text = Loc.T("文件搜索不可用");
         }
         return available;
     }
     private void InstallEverything_Click(object sender, RoutedEventArgs e)
     {
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://www.voidtools.com/downloads/") { UseShellExecute = true }); }
-        catch (System.ComponentModel.Win32Exception ex) { SetMessage("无法打开下载页面：" + ex.Message); }
+        catch (System.ComponentModel.Win32Exception ex) { SetMessage(Loc.T("无法打开下载页面：") + ex.Message); }
     }
     private void RecordUsage(string path)
     {
         try { _usage.Record(path); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { SetMessage("已启动；使用记录未能保存：" + ex.Message); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { SetMessage(Loc.T("已启动；使用记录未能保存：") + ex.Message); }
     }
     private void ShowShellMenu(ILauncherItem item, Point point)
     {
+        if (item is UrlHistoryItem url) { Query.Text = url.Visit.Url; Query.SelectAll(); FocusSearch(); return; }
         if (_fileMode && item is FileItem) { ShowFileFlyout(item, point); return; }
         _choosingFolder = true;
         try
@@ -190,7 +194,7 @@ public partial class MainWindow
             }
             else FocusSearch();
         }
-        catch (Exception ex) when (ex is COMException or IOException or System.ComponentModel.Win32Exception) { SetMessage("无法显示菜单：" + ex.Message); }
+        catch (Exception ex) when (ex is COMException or IOException or System.ComponentModel.Win32Exception) { SetMessage(Loc.T("无法显示菜单：") + ex.Message); }
         finally { _choosingFolder = false; }
     }
     private void Results_RightClick(object sender, MouseButtonEventArgs e)

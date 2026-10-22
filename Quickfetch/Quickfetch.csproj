@@ -6,7 +6,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/Quickfetch.ico</ApplicationIcon>
     <StartupObject>Quickfetch.Program</StartupObject>
-    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.4</Version>
+    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.5</Version>
     <PublishSingleFile>true</PublishSingleFile><SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier><DebugType>none</DebugType>
   </PropertyGroup>

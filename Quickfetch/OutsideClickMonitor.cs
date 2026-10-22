@@ -21,7 +21,7 @@ internal sealed class OutsideClickMonitor : IDisposable
     {
         _click = click; _callback = MouseMessage;
         _thread = new Thread(Run) { IsBackground = true, Name = "Quickfetch outside click" }; _thread.Start();
-        if (!_ready.Wait(TimeSpan.FromSeconds(3))) { Dispose(); throw new TimeoutException("窗口外点击监听启动超时。"); }
+        if (!_ready.Wait(TimeSpan.FromSeconds(3))) { Dispose(); throw new TimeoutException(Loc.T("窗口外点击监听启动超时。")); }
         if (_error is not null) { Dispose(); throw _error; }
     }
     private void Run()

@@ -18,21 +18,21 @@ internal sealed class FileFlyout : Window
     internal FileMenuAction Action { get; private set; }
     internal FileFlyout(string name)
     {
-        Title = "文件操作"; Width = 294; SizeToContent = SizeToContent.Height;
+        Title = Loc.T("文件操作"); Width = 294; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false; Topmost = true; Background = Brushes.Transparent;
         FontFamily = new FontFamily("Segoe UI");
         var panel = new StackPanel { Margin = new Thickness(6) };
         var toolbar = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, 0, 3) };
-        Add(toolbar, "\uE8C6", "剪切", FileMenuAction.Cut, true);
-        Add(toolbar, "\uE8C8", "复制", FileMenuAction.Copy, true);
-        Add(toolbar, "\uE71B", "复制路径", FileMenuAction.CopyPath, true);
+        Add(toolbar, "\uE8C6", Loc.T("剪切"), FileMenuAction.Cut, true);
+        Add(toolbar, "\uE8C8", Loc.T("复制"), FileMenuAction.Copy, true);
+        Add(toolbar, "\uE71B", Loc.T("复制路径"), FileMenuAction.CopyPath, true);
         panel.Children.Add(toolbar); Divider(panel);
-        Add(panel, "\uE8E5", "打开", FileMenuAction.Open);
-        Add(panel, "\uE838", "打开所在文件夹", FileMenuAction.OpenFolder);
-        Add(panel, "\uE946", "属性", FileMenuAction.Properties);
+        Add(panel, "\uE8E5", Loc.T("打开"), FileMenuAction.Open);
+        Add(panel, "\uE838", Loc.T("打开所在文件夹"), FileMenuAction.OpenFolder);
+        Add(panel, "\uE946", Loc.T("属性"), FileMenuAction.Properties);
         Divider(panel);
-        Add(panel, "\uE712", "显示更多选项", FileMenuAction.More);
+        Add(panel, "\uE712", Loc.T("显示更多选项"), FileMenuAction.More);
         var border = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), Child = panel };
         border.SetResourceReference(Border.BackgroundProperty, "KeyboardSurface");
         border.SetResourceReference(Border.BorderBrushProperty, "Line"); Content = border;

@@ -22,7 +22,7 @@ internal static class DownloadBridge
     internal static async Task<T?> Read<T>(Stream stream, CancellationToken token)
     {
         var header = new byte[4]; await stream.ReadExactlyAsync(header, token);
-        var size = BitConverter.ToInt32(header); if (size is < 1 or > 65536) throw new IOException("消息长度无效。");
+        var size = BitConverter.ToInt32(header); if (size is < 1 or > 65536) throw new IOException(Loc.T("消息长度无效。"));
         var body = new byte[size]; await stream.ReadExactlyAsync(body, token); return JsonSerializer.Deserialize<T>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
     internal static async Task Write<T>(Stream stream, T value, CancellationToken token)
@@ -42,15 +42,19 @@ internal static class DownloadBridge
                 BridgeReply reply;
                 try
                 {
-                    var request = await Read<DownloadRequest>(pipe, timeout.Token) ?? throw new IOException("下载请求为空。");
+                    var request = await Read<DownloadRequest>(pipe, timeout.Token) ?? throw new IOException(Loc.T("下载请求为空。"));
                     var probe = await manager.ProbeAsync(request.Url, request.Referer, timeout.Token);
-                    reply = new(true, "已加入 Quickfetch 下载队列。", manager.Enqueue(probe, request));
+                    reply = new(true, Loc.T("已加入 Quickfetch 下载队列。"), manager.Enqueue(probe, request));
                 }
                 catch (Exception ex) when (ex is IOException or System.Net.Http.HttpRequestException or OperationCanceledException or ArgumentException or UnauthorizedAccessException)
-                { reply = new(false, "Quickfetch 无法接管：" + ex.Message); }
+                { reply = new(false, Loc.T("Quickfetch 无法接管：") + ex.Message); }
                 await Write(pipe, reply, timeout.Token);
             }
-            catch (Exception ex) when (ex is IOException or OperationCanceledException or JsonException or UnauthorizedAccessException) { if (token.IsCancellationRequested) break; }
+            catch (Exception ex) when (ex is IOException or OperationCanceledException or JsonException or UnauthorizedAccessException)
+            {
+                if (token.IsCancellationRequested) break;
+                try { await Task.Delay(200, token); } catch (OperationCanceledException) { break; }
+            }
         }
     }
     private static async Task<BridgeReply> Send(DownloadRequest request, bool start)
@@ -62,7 +66,7 @@ internal static class DownloadBridge
             try
             {
                 await pipe.ConnectAsync(500, timeout.Token); await Write(pipe, request, timeout.Token);
-                return await Read<BridgeReply>(pipe, timeout.Token) ?? new(false, "Quickfetch 未响应。");
+                return await Read<BridgeReply>(pipe, timeout.Token) ?? new(false, Loc.T("Quickfetch 未响应。"));
             }
             catch (TimeoutException)
             {
@@ -71,15 +75,15 @@ internal static class DownloadBridge
                 await Task.Delay(300, timeout.Token);
             }
         }
-        return new(false, "请先启动 Quickfetch 后重试。");
+        return new(false, Loc.T("请先启动 Quickfetch 后重试。"));
     }
     private static void StartDesktop()
     {
         Exception? error = null;
         var thread = new Thread(() => { try { StartDesktopSta(); } catch (Exception ex) { error = ex; } });
         thread.SetApartmentState(ApartmentState.STA); thread.IsBackground = true; thread.Start();
-        if (!thread.Join(5000)) throw new IOException("桌面启动超时。");
-        if (error is not null) throw new IOException("无法从桌面启动 Quickfetch。", error);
+        if (!thread.Join(5000)) throw new IOException(Loc.T("桌面启动超时。"));
+        if (error is not null) throw new IOException(Loc.T("无法从桌面启动 Quickfetch。"), error);
     }
     private static void StartDesktopSta()
     {

@@ -17,13 +17,13 @@ internal static class DownloadFileActions
 {
     internal static void Open(DownloadJob job)
     {
-        if (!File.Exists(job.CompletedPath)) throw new IOException("下载文件不存在或已被移动。");
+        if (!File.Exists(job.CompletedPath)) throw new IOException(Loc.T("下载文件不存在或已被移动。"));
         Process.Start(new ProcessStartInfo(job.CompletedPath) { UseShellExecute = true });
     }
     internal static void Folder(DownloadJob job) => Process.Start(new ProcessStartInfo("explorer.exe", job.CompletedPath.Length > 0 ? "/select,\"" + job.CompletedPath + "\"" : "\"" + job.Folder + "\"") { UseShellExecute = true });
     internal static void Delete(DownloadJob job)
     {
-        if (!File.Exists(job.CompletedPath)) throw new IOException("文件已被删除或移动。");
+        if (!File.Exists(job.CompletedPath)) throw new IOException(Loc.T("文件已被删除或移动。"));
         Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(job.CompletedPath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin, Microsoft.VisualBasic.FileIO.UICancelOption.DoNothing);
     }
 }
@@ -71,8 +71,10 @@ internal sealed class DownloadToast : Window
     private readonly TextBlock _caption = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly StackPanel _body = new();
     private readonly Button _pause = new() { MinWidth = 56, MinHeight = 36, Padding = new Thickness(6, 2, 6, 2) };
-    private readonly Button _open = new() { Content = "打开", MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) };
-    private readonly Button _delete = new() { Content = "删除", MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) };
+    private readonly Button _open = new() { Content = Loc.T("打开"), MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) };
+    private readonly Button _delete = new() { Content = Loc.T("删除"), MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) };
+    private readonly Button _remove = new() { Content = Loc.T("移除记录"), ToolTip = Loc.T("仅移除这条下载记录，保留文件"), MinHeight = 36, Padding = new Thickness(8, 2, 8, 2), Visibility = Visibility.Collapsed };
+    private readonly Button _cancel = new() { Content = Loc.T("取消任务"), MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) };
     private DateTimeOffset? _ended;
     private bool _collapsed;
     internal Guid Id => _job.Id;
@@ -86,8 +88,8 @@ internal sealed class DownloadToast : Window
         var stack = new StackPanel { Margin = new Thickness(12, 8, 12, 8) }; var border = new Border { Child = stack, CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1) };
         border.SetResourceReference(Border.BackgroundProperty, "Surface"); border.SetResourceReference(Border.BorderBrushProperty, "Line"); Content = border;
         var top = new DockPanel();
-        var close = new Button { Content = "×", Width = 32, Height = 30, Padding = new Thickness(0), ToolTip = "关闭提示，下载继续" }; close.Click += (_, _) => Close(); DockPanel.SetDock(close, Dock.Right); top.Children.Add(close);
-        var collapse = new Button { Content = "−", Width = 32, Height = 30, Padding = new Thickness(0), ToolTip = "收起 / 展开" };
+        var close = new Button { Content = "×", Width = 32, Height = 30, Padding = new Thickness(0), ToolTip = Loc.T("关闭提示，下载继续") }; close.Click += (_, _) => Close(); DockPanel.SetDock(close, Dock.Right); top.Children.Add(close);
+        var collapse = new Button { Content = "−", Width = 32, Height = 30, Padding = new Thickness(0), ToolTip = Loc.T("收起 / 展开") };
         collapse.Click += (_, _) => { _collapsed = !_collapsed; _body.Visibility = _collapsed ? Visibility.Collapsed : Visibility.Visible; Height = _collapsed ? 48 : 194; collapse.Content = _collapsed ? "＋" : "−"; };
         DockPanel.SetDock(collapse, Dock.Right); top.Children.Add(collapse); top.Children.Add(_caption); stack.Children.Add(top); stack.Children.Add(_body);
         _body.Children.Add(new TextBlock { Text = job.Name, FontSize = 15, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 5, 0, 6), ToolTip = job.Name });
@@ -95,9 +97,10 @@ internal sealed class DownloadToast : Window
         var actions = new WrapPanel();
         _pause.Click += (_, _) => Act(() => { if (_job.Status is DownloadStatus.Queued or DownloadStatus.Running) manager.Pause(Id); else manager.Resume(Id); }); actions.Children.Add(_pause);
         _open.Click += (_, _) => Act(() => DownloadFileActions.Open(_job)); actions.Children.Add(_open);
-        var folder = new Button { Content = "打开文件夹", MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) }; folder.Click += (_, _) => Act(() => DownloadFileActions.Folder(_job)); actions.Children.Add(folder);
+        var folder = new Button { Content = Loc.T("打开文件夹"), MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) }; folder.Click += (_, _) => Act(() => DownloadFileActions.Folder(_job)); actions.Children.Add(folder);
         _delete.Click += (_, _) => Act(() => DownloadFileActions.Delete(_job)); actions.Children.Add(_delete);
-        var cancel = new Button { Content = "取消任务", MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) }; cancel.Click += (_, _) => Act(() => manager.Cancel(Id)); actions.Children.Add(cancel); _body.Children.Add(actions);
+        _cancel.Click += (_, _) => Act(() => manager.Cancel(Id)); actions.Children.Add(_cancel);
+        _remove.Click += (_, _) => Act(() => manager.RemoveCompleted(Id)); actions.Children.Add(_remove); _body.Children.Add(actions);
         _timer.Tick += (_, _) => { Refresh(); if (_ended is DateTimeOffset ended && DateTimeOffset.Now - ended > TimeSpan.FromSeconds(20) && !IsMouseOver) Close(); };
         Loaded += (_, _) => { WindowBackdrop.Apply(new WindowInteropHelper(this).Handle); Refresh(); _timer.Start(); }; Closed += (_, _) => _timer.Stop();
         SizeChanged += (_, _) => { if (IsLoaded) WindowBackdrop.Apply(new WindowInteropHelper(this).Handle); };
@@ -106,9 +109,12 @@ internal sealed class DownloadToast : Window
     internal void Refresh()
     {
         var current = Array.Find(_manager.Snapshot(), job => job.Id == Id); if (current is null) { Close(); return; } _job = current;
-        _caption.Text = (current.Status == DownloadStatus.Completed ? "下载完成 · " : "Quickfetch 下载 · ") + current.Name;
+        _caption.Text = (current.Status == DownloadStatus.Completed ? Loc.T("下载完成 · ") : Loc.T("Quickfetch 下载 · ")) + current.Name;
         _view.Update(current); _status.Text = _view.Details + (current.Error.Length > 0 ? "\n" + current.Error : ""); _map.Job = current;
         _pause.Content = _view.ActionLabel; _pause.IsEnabled = _view.CanToggle; _open.IsEnabled = _delete.IsEnabled = current.Status == DownloadStatus.Completed;
+        _open.Visibility = _delete.Visibility = _view.CompletedActionsVisibility;
+        _remove.Visibility = _view.CompletedActionsVisibility;
+        _pause.Visibility = _cancel.Visibility = current.Status == DownloadStatus.Completed ? Visibility.Collapsed : Visibility.Visible;
         if (current.Status is DownloadStatus.Completed or DownloadStatus.Cancelled or DownloadStatus.Failed) _ended ??= DateTimeOffset.Now; else _ended = null;
     }
     protected override void OnSourceInitialized(EventArgs e)

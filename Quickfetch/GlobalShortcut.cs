@@ -23,7 +23,7 @@ public sealed class GlobalShortcut : IDisposable
         _show = show;
         _thread = new Thread(Run) { Name = "Quickfetch shortcut", IsBackground = true };
         _thread.Start();
-        if (!_ready.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("快捷键线程未能及时启动。");
+        if (!_ready.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException(Loc.T("快捷键线程未能及时启动。"));
         if (_error is not null) throw _error;
     }
 
@@ -33,7 +33,7 @@ public sealed class GlobalShortcut : IDisposable
         PeekMessage(out _, IntPtr.Zero, 0, 0, 0);
         _callback = HandleKey;
         _hook = SetWindowsHookEx(13, _callback, GetModuleHandle(null), 0);
-        if (_hook == IntPtr.Zero) _error = new Win32Exception(Marshal.GetLastWin32Error(), "无法接管 Win + S。");
+        if (_hook == IntPtr.Zero) _error = new Win32Exception(Marshal.GetLastWin32Error(), Loc.T("无法接管 Win + S。"));
         _ready.Set();
         if (_error is not null) return;
         try { while (GetMessage(out var message, IntPtr.Zero, 0, 0) > 0) { TranslateMessage(ref message); DispatchMessage(ref message); } }

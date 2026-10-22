@@ -1,0 +1,70 @@
+<Window x:Class="Quickfetch.CharacterMapWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{local:Tr T6f20bc22f061}" Icon="Assets/Quickfetch.ico" Width="920" Height="740" WindowStyle="None" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="Transparent" Foreground="{DynamicResource Ink}" FontFamily="Segoe UI" UseLayoutRounding="True" PreviewKeyDown="Window_KeyDown" xmlns:local="clr-namespace:Quickfetch">
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="DownloadFields.xaml"/></ResourceDictionary.MergedDictionaries>
+      <FontFamily x:Key="CharacterFont">Segoe UI, Segoe UI Emoji, Cambria Math, Segoe UI Symbol</FontFamily>
+      <local:LocalizedTextConverter x:Key="LocalizedText" xmlns:local="clr-namespace:Quickfetch"/>
+      <local:CharacterNameConverter x:Key="CharacterName" xmlns:local="clr-namespace:Quickfetch"/>
+      <Style x:Key="CharAction" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="MinHeight" Value="42"/><Setter Property="Padding" Value="12,6"/><Setter Property="Focusable" Value="False"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    </ResourceDictionary>
+  </Window.Resources>
+  <WindowChrome.WindowChrome><WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="10" UseAeroCaptionButtons="False"/></WindowChrome.WindowChrome>
+  <AdornerDecorator><Border x:Name="InputSurface" Focusable="True" KeyboardNavigation.IsTabStop="False" CornerRadius="10" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="18,10,18,14">
+    <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="48"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <DockPanel MouseLeftButtonDown="Header_Drag">
+        <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource CharAction}" Click="Close_Click" Width="44" ToolTip="{local:Tr T97889c508f46}" AutomationProperties.Name="{local:Tr T44db24788af5}"/>
+        <TextBlock Text="{local:Tr Ted55662a52fa}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <TextBlock Text="CHARACTER MAP" FontSize="10" Margin="12,4,0,0" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+      </DockPanel>
+      <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="168"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+        <TextBox x:Name="SearchInput" MaxLength="4096" FontSize="16" Padding="12,10" VerticalContentAlignment="Center" AutomationProperties.Name="{local:Tr Tc7ee0485b265}" ToolTip="{local:Tr T96bdcbac5acf}" TextChanged="Search_Changed" PreviewTouchDown="Text_TouchDown" PreviewStylusDown="Text_StylusDown" PreviewMouseDown="Text_MouseDown" GotKeyboardFocus="Text_Focused"/>
+        <ComboBox x:Name="Category" Grid.Column="1" Margin="10,0,0,0" SelectionChanged="Category_Changed" AutomationProperties.Name="{local:Tr T21d68d1f0a8d}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource LocalizedText}}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+        <Button x:Name="CharacterKeyboardButton" Grid.Column="2" Style="{StaticResource CharAction}" Click="Keyboard_Click" ToolTip="{local:Tr T7b9b82ceb973}" AutomationProperties.Name="{local:Tr T9ac61bba5b5a}"><TextBlock Text="&#xE765;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="19"/></Button>
+      </Grid>
+      <TextBlock Grid.Row="2" Text="{local:Tr T0638aad85c58}" FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,10"/>
+      <Grid Grid.Row="3" Margin="0,0,0,12">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="0.46*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="0.54*"/></Grid.ColumnDefinitions>
+        <Grid><Grid.RowDefinitions><RowDefinition Height="30"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <TextBlock Text="{local:Tr Tb5fe1efd7d53}" FontWeight="SemiBold" FontSize="13"/>
+          <Grid Grid.Row="1">
+            <TextBlock x:Name="StyleHint" Text="{local:Tr T369c30863847}" Foreground="{DynamicResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="12,16"/>
+            <ListBox x:Name="StyleResults" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.PanningMode="VerticalOnly" VirtualizingPanel.ScrollUnit="Pixel" Button.Click="Insert_Click">
+              <ListBox.ItemTemplate><DataTemplate>
+                <Border Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="9" Padding="10,8" Margin="0,0,2,8">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Name, Converter={StaticResource LocalizedText}}" FontSize="12" FontWeight="SemiBold"/>
+                    <Button Style="{StaticResource CharAction}" ToolTip="{local:Tr T10ea25358387}" HorizontalContentAlignment="Left" Padding="0,5" Margin="0,3,0,2"><TextBlock Text="{Binding Text}" FontFamily="{StaticResource CharacterFont}" FontSize="23" TextWrapping="Wrap" MaxHeight="82" TextTrimming="CharacterEllipsis"/></Button>
+                    <TextBlock Text="{Binding Note}" FontSize="10.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+                    <ItemsControl ItemsSource="{Binding Words}" Margin="0,5,0,0"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
+                      <Button Content="{Binding Text}" ToolTip="{Binding Original}" Style="{StaticResource CharAction}" FontFamily="{StaticResource CharacterFont}" FontSize="15" Padding="8,3" MinHeight="36" Background="{DynamicResource Hover}" Margin="0,0,5,4"/>
+                    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                  </StackPanel>
+                </Border>
+              </DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Grid>
+        <Grid Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="30"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <TextBlock x:Name="ResultCount" Text="{local:Tr T578c67f58240}" FontWeight="SemiBold" FontSize="13"/>
+          <Grid Grid.Row="1">
+            <TextBlock x:Name="EmptyHint" Text="{local:Tr T46ae224b8387}" Foreground="{DynamicResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="8,16"/>
+              <ListBox x:Name="Characters" Button.Click="Insert_Click" SizeChanged="Characters_SizeChanged" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.PanningMode="VerticalOnly" VirtualizingPanel.ScrollUnit="Pixel" VirtualizingPanel.VirtualizationMode="Recycling">
+                <ListBox.ItemTemplate><DataTemplate><ItemsControl ItemsSource="{Binding}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="{Binding CharacterColumns, RelativeSource={RelativeSource AncestorType=Window}}"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
+                  <Button Style="{StaticResource CharAction}" Height="80" Padding="4" Margin="0,0,5,5" ToolTip="{Binding Hint}" Background="{DynamicResource Panel}" AutomationProperties.Name="{Binding Converter={StaticResource CharacterName}}">
+                    <StackPanel><TextBlock Text="{Binding Preview}" FontFamily="{StaticResource CharacterFont}" FontSize="26" Height="37" TextAlignment="Center" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Converter={StaticResource CharacterName}}" FontSize="10" TextAlignment="Center" TextTrimming="CharacterEllipsis"/></StackPanel>
+                  </Button>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+          </Grid>
+        </Grid>
+      </Grid>
+      <Grid Grid.Row="4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
+        <TextBox x:Name="Composer" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="92" MaxHeight="120" FontFamily="{StaticResource CharacterFont}" FontSize="21" MaxLength="32768" AutomationProperties.Name="{local:Tr Td13c38859a55}" ToolTip="{local:Tr Tf5bb59f08dd0}" PreviewTouchDown="Text_TouchDown" PreviewStylusDown="Text_StylusDown" PreviewMouseDown="Text_MouseDown" GotKeyboardFocus="Text_Focused"/>
+        <StackPanel Grid.Column="1" Margin="10,0,0,0"><Button x:Name="CopyButton" Content="{local:Tr T63d90d977348}" Style="{StaticResource CharAction}" Background="{DynamicResource Selection}" Click="Copy_Click" ToolTip="{local:Tr T08fe4e488178}"/><Button x:Name="ClearButton" Content="{local:Tr T1ef3de06b32e}" Style="{StaticResource CharAction}" Click="Clear_Click" Margin="0,6,0,0"/></StackPanel>
+      </Grid>
+      <TextBlock x:Name="Message" Grid.Row="5" Text="{local:Tr Tb1bf2fb81af3}" Foreground="{DynamicResource Muted}" FontSize="10.5" TextWrapping="Wrap" Margin="0,8,0,0"/>
+    </Grid>
+  </Border></AdornerDecorator>
+</Window>

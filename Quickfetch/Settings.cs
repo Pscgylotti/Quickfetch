@@ -7,6 +7,7 @@ namespace Quickfetch;
 
 public sealed class Settings
 {
+    public string UiLanguage { get; set; } = "zh-CN";
     public string Folder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
     public bool IncludeSubfolders { get; set; } = true;
     public bool IncludeRegisteredApps { get; set; } = true;

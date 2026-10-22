@@ -29,21 +29,23 @@ public partial class MainWindow
     {
         if (_choosingFolder) return;
         try { InitializeDownloads(); _choosingFolder = true; new DownloadsWindow(_downloads!, _settings, _saveSettings) { Owner = this }.ShowDialog(); }
-        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage("无法打开下载面板：" + ex.Message); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法打开下载面板：") + ex.Message); }
         finally { _choosingFolder = false; FocusSearch(); }
     }
     private async Task SubmitUrl()
     {
-        if (_urlSubmitting || !DownloadManager.TryUrl(Query.Text, out var uri)) return;
+        if (_urlSubmitting || !UrlHistory.TryAddress(UrlToOpen(), out var uri)) { if (!_urlSubmitting) SetMessage(Loc.T("请输入完整网址，或选择历史记录后按 Tab 补全。")); return; }
         _urlSubmitting = true;
         try
         {
-            InitializeDownloads(); SetMessage("正在检查网址…"); var probe = await _downloads!.ProbeAsync(uri.AbsoluteUri);
-            if (probe.IsFile) _downloads.Enqueue(probe, new(uri.AbsoluteUri));
+            SetMessage(Loc.T("正在打开网址…")); var probe = await _urlHistory.ResolveAsync(uri.AbsoluteUri, async url => { InitializeDownloads(); return await _downloads!.ProbeAsync(url); });
+            if (probe.IsFile) { InitializeDownloads(); _downloads!.Enqueue(probe, new(uri.AbsoluteUri)); }
             else Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+            try { _urlHistory.Record(uri.AbsoluteUri, probe.IsFile, probe.IsFile ? probe.Name : uri.Host, DateTimeOffset.UtcNow); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppDiagnostics.Current.Fault("url-history-save", ex); }
             Hide();
         }
-        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage("无法处理链接：" + ex.Message); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法处理链接：") + ex.Message); }
         finally { _urlSubmitting = false; }
     }
     private void StopDownloads() { _downloadBridgeCancellation?.Cancel(); _downloads?.Dispose(); DownloadNotifications.CloseAll(); }

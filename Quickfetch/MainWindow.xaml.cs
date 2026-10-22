@@ -51,10 +51,13 @@ public partial class MainWindow : Window
     private readonly TranslateTransform _openShift = new();
     public string BackdropMode { get; private set; } = "Pending";
     public MainWindow() : this(Settings.Load()) { }
-    internal MainWindow(Settings settings, Action<Settings>? saveSettings = null)
+    internal MainWindow(Settings settings, Action<Settings>? saveSettings = null, UrlHistory? urlHistory = null)
     {
         _settings = settings;
         _saveSettings = saveSettings ?? (value => value.Save());
+        _urlHistory = urlHistory ?? new UrlHistory(Path.Combine(Settings.Storage, "url-history-v1.json"));
+        Loc.SetLanguage(_settings.UiLanguage);
+        _settings.UiLanguage = TextLocalization.Language;
         InitializeComponent();
         InitializeModes();
         InitializeFileColumns();
@@ -68,6 +71,7 @@ public partial class MainWindow : Window
         AutostartCheck.IsChecked = Settings.AutoStart;
         BuiltInKeyboardCheck.IsChecked = _settings.UseBuiltInKeyboard;
         QuickKeyboard.KeyPressed += KeyboardKeyPressed;
+        LanguageControl.SelectedValue = _settings.UiLanguage; _languageReady = true;
         Loaded += (_, _) => ScheduleBackdrop();
         Activated += (_, _) => ScheduleBackdrop();
         SizeChanged += (_, _) => ScheduleBackdrop();
@@ -84,12 +88,12 @@ public partial class MainWindow : Window
     {
         InitializeDownloads();
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("打开 Quickfetch", null, (_, _) => Dispatcher.BeginInvoke(ShowLauncher));
-        menu.Items.Add("快捷方式文件夹", null, (_, _) => Dispatcher.BeginInvoke(OpenShortcutFolder));
-        menu.Items.Add("刷新快捷方式", null, (_, _) => Dispatcher.BeginInvoke(async () => await RefreshCatalog(true)));
-        menu.Items.Add("触屏手势设置", null, (_, _) => Dispatcher.BeginInvoke(OpenGestureSettings));
+        menu.Items.Add(Loc.T("打开 Quickfetch"), null, (_, _) => Dispatcher.BeginInvoke(ShowLauncher));
+        menu.Items.Add(Loc.T("快捷方式文件夹"), null, (_, _) => Dispatcher.BeginInvoke(OpenShortcutFolder));
+        menu.Items.Add(Loc.T("刷新快捷方式"), null, (_, _) => Dispatcher.BeginInvoke(async () => await RefreshCatalog(true)));
+        menu.Items.Add(Loc.T("触屏手势设置"), null, (_, _) => Dispatcher.BeginInvoke(OpenGestureSettings));
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("退出", null, (_, _) => Dispatcher.BeginInvoke(() => ((App)Application.Current).ExitFromTray()));
+        menu.Items.Add(Loc.T("退出"), null, (_, _) => Dispatcher.BeginInvoke(() => ((App)Application.Current).ExitFromTray()));
         using var personalize = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         var darkTray = personalize?.GetValue("SystemUsesLightTheme") is int light && light == 0;
         _trayIcon = TrayIconFactory.Create(darkTray);
@@ -326,14 +330,16 @@ public partial class MainWindow : Window
         Results.ItemsSource = items;
         Results.SelectedIndex = matches.Count > 0 ? 0 : -1;
         if (items.Length > 0) Results.ScrollIntoView(items[0]);
-        EmptyMessage.Text = _loading ? "正在读取应用…" : _entries.Count == 0 ? "没有可检索的应用。\n点击设置可选择快捷方式文件夹或启用 Windows 注册应用。" : "没有匹配的应用";
+        EmptyMessage.Text = _loading ? Loc.T("正在读取应用…") : _entries.Count == 0 ? Loc.T("没有可检索的应用。\n点击设置可选择快捷方式文件夹或启用 Windows 注册应用。") : Loc.T("没有匹配的应用");
         EmptyMessage.Visibility = matches.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        Status.Text = Query.Text.Length == 0 ? $"{_entries.Count} 个应用入口" : $"{matches.Count} / {_entries.Count} 个匹配";
+        Status.Text = Query.Text.Length == 0 ? Loc.F($"{_entries.Count} 个应用入口") : Loc.F($"{matches.Count} / {_entries.Count} 个匹配");
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Tab && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift) { SwitchMode(); e.Handled = true; return; }
+        if (IsUrlShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; EnterUrlMode(); return; }
+        if (IsCharacterMapShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; OpenCharacterMap(); return; }
+        if (e.Key == Key.Tab && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift) { if (_showingUrlHistory) CompleteUrl(); else SwitchMode(); e.Handled = true; return; }
         if (_touchInput && e.Key != Key.Escape) { SetTouchKeyboard(false, physicalKeyboard: true); FocusSearch(); }
         if (e.Key == Key.Escape) { Hide(); e.Handled = true; }
         else if (e.Key is Key.Down or Key.Up)
@@ -343,6 +349,7 @@ public partial class MainWindow : Window
                 var next = Results.SelectedIndex + (e.Key == Key.Down ? 1 : -1);
                 Results.SelectedIndex = Math.Clamp(next, 0, Results.Items.Count - 1);
                 Results.ScrollIntoView(Results.SelectedItem);
+                if (_showingUrlHistory) _urlSelectionMoved = true;
             }
             e.Handled = true;
         }
@@ -372,10 +379,10 @@ public partial class MainWindow : Window
         QuickKeyboard.Visibility = builtInVisible ? Visibility.Visible : Visibility.Collapsed;
         SetToggled(KeyboardToggle, builtInVisible);
         if (revealKeyboard) Reveal(QuickKeyboard, 16);
-        KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? "展开或收起触屏键盘" : "打开 Windows 系统触摸键盘";
+        KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? Loc.T("展开或收起触屏键盘") : Loc.T("打开 Windows 系统触摸键盘");
         var center = Left + Width / 2;
-        FilePreviewPanel.Visibility = _fileMode && _settings.EnableFilePreview ? Visibility.Visible : Visibility.Collapsed;
-        var targetWidth = Math.Min(_fileMode ? 784 + (_settings.EnableFilePreview ? 316 : 0) : 660, SystemParameters.WorkArea.Width - 24);
+        FilePreviewPanel.Visibility = _fileMode && !_urlMode && !_showingUrlHistory && _settings.EnableFilePreview ? Visibility.Visible : Visibility.Collapsed;
+        var targetWidth = Math.Min(_fileMode ? 784 + (_settings.EnableFilePreview && !_urlMode && !_showingUrlHistory ? 316 : 0) : 660, SystemParameters.WorkArea.Width - 24);
         _modeTargetWidth = targetWidth;
         if (!(animateModeBounds && IsVisible && SystemParameters.ClientAreaAnimation))
         {
@@ -432,7 +439,7 @@ public partial class MainWindow : Window
     {
         if (key == "hide") SetTouchKeyboard(false);
         else if (key == "directory") { LaunchSelected(true); return; }
-        else if (key == "mode") { SwitchMode(); return; }
+        else if (key == "mode") { if (_showingUrlHistory) CompleteUrl(); else SwitchMode(); return; }
         else if (key == "enter") { LaunchSelected(); return; }
         else if (key is "up" or "down")
         {
@@ -454,20 +461,20 @@ public partial class MainWindow : Window
 
     private void LaunchSelected(bool openDirectory = false)
     {
-        if (_fileMode && DownloadManager.TryUrl(Query.Text, out _)) { _ = SubmitUrl(); return; }
+        if (_urlMode || _showingUrlHistory) { _ = SubmitUrl(); return; }
         if (Results.SelectedItem is not ILauncherItem item) return;
         try
         {
             if (item is ShortcutItem app && app.Match.Entry.IsRegisteredApp)
             {
-                if (!_settings.IncludeRegisteredApps) throw new IOException("Windows 注册应用已关闭。");
+                if (!_settings.IncludeRegisteredApps) throw new IOException(Loc.T("Windows 注册应用已关闭。"));
                 if (openDirectory) Process.Start(new ProcessStartInfo("explorer.exe", "shell:AppsFolder") { UseShellExecute = true });
                 else { RegisteredAppCatalog.Activate(app.Match.Entry.AppUserModelId!); RecordUsage(item.Path); }
                 Hide(); return;
             }
             if (item is ShortcutItem shortcut && !ShortcutCatalog.IsAllowed(shortcut.Match.Entry, _settings.ShortcutRoots, _settings.IncludeSubfolders))
-                throw new IOException("快捷方式已经移动或删除。请按 F5 刷新。");
-            if (!File.Exists(item.Path) && !Directory.Exists(item.Path)) throw new IOException("文件已移动或删除，请刷新搜索。");
+                throw new IOException(Loc.T("快捷方式已经移动或删除。请按 F5 刷新。"));
+            if (!File.Exists(item.Path) && !Directory.Exists(item.Path)) throw new IOException(Loc.T("文件已移动或删除，请刷新搜索。"));
             if (openDirectory) Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + item.Path + "\"") { UseShellExecute = true });
             else
             {
@@ -478,7 +485,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException or COMException)
         {
-            SetMessage("无法启动：" + ex.Message);
+            SetMessage(Loc.T("无法启动：") + ex.Message);
             FocusSearch();
         }
     }
@@ -530,7 +537,7 @@ public partial class MainWindow : Window
     {
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null; _columnTouch = null;
         _doubleTap.Reset(); _listTouchId = null; _listTouchItem = null;
-        if (!_choosingFolder && !IsTouchKeyboardWindow(GetForegroundWindow())) Hide();
+        if (!_choosingFolder && !_extensionsMenuOpen && !IsTouchKeyboardWindow(GetForegroundWindow())) Hide();
     }
     private void Header_Drag(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed && e.OriginalSource is TextBlock) DragMove(); }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
@@ -548,7 +555,7 @@ public partial class MainWindow : Window
         _choosingFolder = true;
         try
         {
-            var picker = new OpenFolderDialog { Title = "选择 .lnk 快捷方式文件夹", InitialDirectory = _settings.Folder };
+            var picker = new OpenFolderDialog { Title = Loc.T("选择 .lnk 快捷方式文件夹"), InitialDirectory = _settings.Folder };
             if (picker.ShowDialog(this) == true)
             {
                 _settings.Folder = picker.FolderName;

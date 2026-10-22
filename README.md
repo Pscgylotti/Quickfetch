@@ -6,14 +6,22 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 ## 下载与运行
 
-在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.4**：
+在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.5**：
 
-- `Quickfetch-0.0.4-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
-- `Quickfetch-0.0.4-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
+- `Quickfetch-0.0.5-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
+- `Quickfetch-0.0.5-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 启动后驻留托盘，**Win + S** 打开搜索。设置中可开启开机启动；默认关闭。托盘右键退出会释放快捷键。`--background` 仅在后台启动。
 
 文件搜索可选依赖 [Everything](https://www.voidtools.com/downloads/)：支持 1.4 默认实例及 1.5a 实例，需在后台运行并启用 IPC。未检测到时显示“文件搜索不可用”及官方下载入口，应用启动仍可用。安装或启动后按 F5 重试。
+
+## 网址历史与 English UI（0.0.5）
+
+主窗口 **Alt+W** 进入独立网址模式，不查询 Everything。成功打开或下载的网址按使用频率与最近使用排序，上下选择、**Tab** 补全、Enter 打开；已确认网页的地址直接使用浏览器，不再校验文件类型。设置可清空历史/缓存，并切换 **界面语言 → English**，文件名和用户输入保留原文。See [URL history and English UI](docs/urls-and-language.md).
+
+## 字符映射（0.0.5）
+
+右上角 **扩展功能 → 字符映射**，或主窗口按 **Alt+C**。离线按中英文名称、字符或 U+ 编码搜索科学符号、拉丁与音标、希腊字母、假名、Emoji；英文与数字可预览 23 种真实 Unicode 样式，支持整段或逐词插入下方可编辑文本框，再复制/清空。上下标缺失字母保留原文；字体显示取决于 Windows。详见 [字符映射说明](docs/character-map.md)。
 
 ## 后台下载（0.0.4）
 

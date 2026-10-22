@@ -114,7 +114,7 @@ public sealed partial class DownloadManager : IDisposable
         var handler = new SocketsHttpHandler { MaxConnectionsPerServer = Workers, AutomaticDecompression = DecompressionMethods.None, ConnectTimeout = TimeSpan.FromSeconds(20), PooledConnectionLifetime = TimeSpan.FromMinutes(10), UseProxy = options.ProxyMode != "none" };
         if (options.ProxyMode == "custom")
         {
-            if (!Uri.TryCreate(options.ProxyAddress, UriKind.Absolute, out var proxy) || proxy.Scheme is not ("http" or "https" or "socks5") || proxy.UserInfo.Length != 0) throw new IOException("代理地址无效；支持 http / https / socks5，无内嵌账号密码。");
+            if (!Uri.TryCreate(options.ProxyAddress, UriKind.Absolute, out var proxy) || proxy.Scheme is not ("http" or "https" or "socks5") || proxy.UserInfo.Length != 0) throw new IOException(TextLocalization.T("代理地址无效；支持 http / https / socks5，无内嵌账号密码。"));
             handler.Proxy = new WebProxy(proxy);
         }
         return new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
@@ -122,13 +122,13 @@ public sealed partial class DownloadManager : IDisposable
     private static HttpRequestMessage Request(Uri url, string? referer = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.UserAgent.ParseAdd("Quickfetch/0.0.4"); request.Headers.AcceptEncoding.ParseAdd("identity");
+        request.Headers.UserAgent.ParseAdd("Quickfetch/0.0.5"); request.Headers.AcceptEncoding.ParseAdd("identity");
         if (TryUrl(referer ?? "", out var refUri)) request.Headers.Referrer = refUri;
         return request;
     }
     public async Task<DownloadProbe> ProbeAsync(string text, string? referer = null, CancellationToken token = default)
     {
-        if (!TryUrl(text, out var uri)) throw new IOException("请输入 HTTP 或 HTTPS 网址。");
+        if (!TryUrl(text, out var uri)) throw new IOException(TextLocalization.T("请输入 HTTP 或 HTTPS 网址。"));
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(25));
         using var client = Client(); using var request = Request(uri, referer); request.Headers.Range = new RangeHeaderValue(0, 0);
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
@@ -146,13 +146,13 @@ public sealed partial class DownloadManager : IDisposable
     }
     public Guid Enqueue(DownloadProbe probe, DownloadRequest request)
     {
-        if (!probe.IsFile) throw new IOException("链接返回网页，需要登录或不能直接下载。");
-        if (request.ExpectedSize is > 0 && probe.Size is long expected && probe.StreamKind.Length == 0 && request.ExpectedSize != expected) throw new IOException("文件长度与浏览器任务不一致，保留浏览器下载。");
+        if (!probe.IsFile) throw new IOException(TextLocalization.T("链接返回网页，需要登录或不能直接下载。"));
+        if (request.ExpectedSize is > 0 && probe.Size is long expected && probe.StreamKind.Length == 0 && request.ExpectedSize != expected) throw new IOException(TextLocalization.T("文件长度与浏览器任务不一致，保留浏览器下载。"));
         var folder = Path.GetFullPath(_options().Folder); Directory.CreateDirectory(folder);
         lock (_gate)
         {
-            if (_stop.IsCancellationRequested) throw new IOException("下载服务已停止。");
-            if (_jobs.Count >= 1000) throw new IOException("下载记录已达 1,000 项，请先清空已结束记录。");
+            if (_stop.IsCancellationRequested) throw new IOException(TextLocalization.T("下载服务已停止。"));
+            if (_jobs.Count >= 1000) throw new IOException(TextLocalization.T("下载记录已达 1,000 项，请先清空已结束记录。"));
             var job = new DownloadJob { Url = probe.Url.AbsoluteUri, Name = SafeName(probe.StreamKind.Length > 0 || string.IsNullOrWhiteSpace(request.Name) ? probe.Name : request.Name), Folder = folder, Referer = request.Referer ?? "", Size = probe.Size, Ranged = probe.Ranged, ETag = probe.ETag, Modified = probe.Modified, StreamKind = probe.StreamKind, Order = ++_order, Status = DownloadStatus.Queued };
             _jobs.Add(job);
             try { Save(); } catch { _jobs.Remove(job); throw; }
@@ -191,13 +191,24 @@ public sealed partial class DownloadManager : IDisposable
         }
     }
     public void ClearHistory() { lock (_gate) { _jobs.RemoveAll(j => j != _active && j.Status is DownloadStatus.Completed or DownloadStatus.Cancelled); Save(); } }
+    public bool RemoveCompleted(Guid id)
+    {
+        lock (_gate)
+        {
+            var index = _jobs.FindIndex(j => j.Id == id && j.Status == DownloadStatus.Completed);
+            if (index < 0) return false;
+            var job = _jobs[index]; _jobs.RemoveAt(index);
+            try { Save(); } catch { _jobs.Insert(index, job); throw; }
+            return true;
+        }
+    }
     private void Wake() { if (_wake.CurrentCount == 0) try { _wake.Release(); } catch (SemaphoreFullException) { } }
     private void Save()
     {
         if (_activeFile is not null) RandomAccess.FlushToDisk(_activeFile);
         Directory.CreateDirectory(Path.GetDirectoryName(_state)!);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(_jobs);
-        if (bytes.Length >= 16 * 1024 * 1024) throw new IOException("下载历史过大，请清理已结束记录后重试。");
+        if (bytes.Length >= 16 * 1024 * 1024) throw new IOException(TextLocalization.T("下载历史过大，请清理已结束记录后重试。"));
         var temporary = _state + ".tmp"; File.WriteAllBytes(temporary, bytes); File.Move(temporary, _state, true);
     }
     private async Task Pump()
@@ -223,7 +234,7 @@ public sealed partial class DownloadManager : IDisposable
                 }
                 if (job.Status == DownloadStatus.Completed) { try { Completed?.Invoke(job.Clone()); } catch (Exception ex) when (ex is not (OutOfMemoryException or StackOverflowException or AccessViolationException)) { } }
             }
-            catch (OperationCanceledException) { lock (_gate) if (job.Status == DownloadStatus.Running && !_stop.IsCancellationRequested) { job.Status = DownloadStatus.Failed; job.Error = "连接超时，请继续重试。"; } }
+            catch (OperationCanceledException) { lock (_gate) if (job.Status == DownloadStatus.Running && !_stop.IsCancellationRequested) { job.Status = DownloadStatus.Failed; job.Error = TextLocalization.T("连接超时，请继续重试。"); } }
             catch (Exception ex) when (ex is not (OutOfMemoryException or StackOverflowException or AccessViolationException))
             { lock (_gate) if (job.Status == DownloadStatus.Running) { job.Status = DownloadStatus.Failed; job.Error = ex.Message; } }
             finally
@@ -235,7 +246,7 @@ public sealed partial class DownloadManager : IDisposable
                     foreach (var part in job.Parts) part.Worker = null;
                     if (job.Status == DownloadStatus.Cancelled) DeletePartial(job);
                     _activeCancellation?.Dispose(); _activeCancellation = null; _active = null; _activeFile = null;
-                    try { Save(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { job.Error = "保存队列失败：" + ex.Message; }
+                    try { Save(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { job.Error = TextLocalization.T("保存队列失败：") + ex.Message; }
                 }
             }
         }
@@ -245,11 +256,11 @@ public sealed partial class DownloadManager : IDisposable
         if (job.StreamKind.Length > 0) { await TransferStream(job, cancellation); return; }
         using var client = Client();
         var fresh = await ProbeAsync(job.Url, job.Referer, cancellation);
-        if (!fresh.IsFile) throw new IOException("链接已失效或返回登录网页。");
+        if (!fresh.IsFile) throw new IOException(TextLocalization.T("链接已失效或返回登录网页。"));
         lock (_gate)
         {
-            if (job.Downloaded > 0 && (!fresh.Ranged || fresh.ETag is null && fresh.Modified is null)) job.Phase = "服务器无法安全续传，恢复时从头下载";
-            else if (job.Downloaded > 0 && (fresh.Size != job.Size || fresh.ETag != job.ETag || fresh.Modified != job.Modified)) job.Phase = "源文件已变化，从头重新下载";
+            if (job.Downloaded > 0 && (!fresh.Ranged || fresh.ETag is null && fresh.Modified is null)) job.Phase = TextLocalization.T("服务器无法安全续传，恢复时从头下载");
+            else if (job.Downloaded > 0 && (fresh.Size != job.Size || fresh.ETag != job.ETag || fresh.Modified != job.Modified)) job.Phase = TextLocalization.T("源文件已变化，从头重新下载");
             if (!File.Exists(job.PartialPath) || fresh.Size != job.Size || fresh.ETag != job.ETag || fresh.Modified != job.Modified || !fresh.Ranged || (job.Downloaded > 0 && fresh.ETag is null && fresh.Modified is null))
             { job.Ranges.Clear(); job.SingleBytes = 0; job.Pointers = new long[Workers]; }
             job.Size = fresh.Size; job.Ranged = fresh.Ranged; job.ETag = fresh.ETag; job.Modified = fresh.Modified;
@@ -289,7 +300,7 @@ public sealed partial class DownloadManager : IDisposable
                         {
                             var downloaded = job.Downloaded; var speed = (downloaded - previous) / Math.Max(.1, clock.Elapsed.TotalSeconds); previous = downloaded; clock.Restart();
                             if (speed >= 256 * 1024 || job.Size - downloaded < 1024 * 1024) continue;
-                            job.WorkerCount = Workers; job.Phase = "单路低于 256 KiB/s，已扩为 8 worker";
+                            job.WorkerCount = Workers; job.Phase = TextLocalization.T("单路低于 256 KiB/s，已扩为 8 worker");
                         }
                         tasks.AddRange(Enumerable.Range(1, Workers - 1).Select(Run)); break;
                     }
@@ -342,13 +353,13 @@ public sealed partial class DownloadManager : IDisposable
                     response.EnsureSuccessStatusCode();
                     var contentRange = response.Content.Headers.ContentRange;
                     if (response.StatusCode != HttpStatusCode.PartialContent || contentRange?.From != start || contentRange.To != end || contentRange.Length != job.Size || response.Content.Headers.ContentEncoding.Count > 0 || job.ETag is not null && response.Headers.ETag is not null && response.Headers.ETag.ToString() != job.ETag)
-                        throw new InvalidDataException("服务器更改了文件或未正确返回分段；已停止以保护文件完整性。");
+                        throw new InvalidDataException(TextLocalization.T("服务器更改了文件或未正确返回分段；已停止以保护文件完整性。"));
                     using var stream = await response.Content.ReadAsStreamAsync(cancellation);
                     while (true)
                     {
                         lock (_gate) if (range.Next > range.End) break;
                         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation); timeout.CancelAfter(TimeSpan.FromSeconds(30));
-                        var read = await stream.ReadAsync(buffer, timeout.Token); if (read == 0) throw new IOException("分段连接提前结束。");
+                        var read = await stream.ReadAsync(buffer, timeout.Token); if (read == 0) throw new IOException(TextLocalization.T("分段连接提前结束。"));
                         lock (_gate)
                         {
                             var count = (int)Math.Min(read, range.End - range.Next + 1);
@@ -368,7 +379,7 @@ public sealed partial class DownloadManager : IDisposable
         using var request = Request(new Uri(job.Url), job.Referer);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation); timeout.CancelAfter(TimeSpan.FromSeconds(30));
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token); response.EnsureSuccessStatusCode();
-        if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentEncoding.Count > 0) throw new IOException("服务器返回了不支持的响应。");
+        if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentEncoding.Count > 0) throw new IOException(TextLocalization.T("服务器返回了不支持的响应。"));
         using var stream = await response.Content.ReadAsStreamAsync(cancellation); var buffer = new byte[BufferSize];
         while (true)
         {
@@ -376,7 +387,7 @@ public sealed partial class DownloadManager : IDisposable
             var read = await stream.ReadAsync(buffer, readTimeout.Token); if (read == 0) break;
             lock (_gate) { RandomAccess.Write(file, buffer.AsSpan(0, read), job.SingleBytes); job.SingleBytes += read; job.Pointers[0] = job.SingleBytes; Checkpoint(); }
         }
-        if (job.Size is long size && job.SingleBytes != size) throw new IOException("文件长度与服务器声明不一致。");
+        if (job.Size is long size && job.SingleBytes != size) throw new IOException(TextLocalization.T("文件长度与服务器声明不一致。"));
     }
     private void Checkpoint()
     {

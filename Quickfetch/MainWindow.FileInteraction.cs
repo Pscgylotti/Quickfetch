@@ -57,7 +57,7 @@ public partial class MainWindow
     private void SaveFileColumns()
     {
         _settings.FileColumnWeights = [FileNameWidth.Value, FilePathWidth.Value, FileSizeWidth.Value, FileDateWidth.Value];
-        try { _settings.Save(); } catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage("列宽已调整，保存失败：" + ex.Message); }
+        try { _settings.Save(); } catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("列宽已调整，保存失败：") + ex.Message); }
     }
     private void FileColumn_DragDelta(object sender, DragDeltaEventArgs e) { ResizeFileColumns(int.Parse((string)((Thumb)sender).Tag), e.HorizontalChange); e.Handled = true; }
     private void FileColumn_DragCompleted(object sender, DragCompletedEventArgs e) => SaveFileColumns();

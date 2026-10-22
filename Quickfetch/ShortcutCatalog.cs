@@ -11,7 +11,7 @@ public static class ShortcutCatalog
     public static bool IsAllowed(ShortcutEntry entry, IEnumerable<string> roots, bool recursive) => roots.Any(root => IsAllowed(entry, root, recursive));
     public static IReadOnlyList<ShortcutEntry> Read(string folder, bool recursive)
     {
-        if (!Directory.Exists(folder)) throw new DirectoryNotFoundException("找不到快捷方式文件夹。请点击右上角设置重新选择。");
+        if (!Directory.Exists(folder)) throw new DirectoryNotFoundException(Loc.T("找不到快捷方式文件夹。请点击右上角设置重新选择。"));
         var options = new EnumerationOptions { RecurseSubdirectories = recursive, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System, MatchCasing = MatchCasing.CaseInsensitive };
         return Directory.EnumerateFiles(folder, "*.lnk", options)
             .Select(path => new ShortcutEntry(Path.GetFileNameWithoutExtension(path), Path.GetFullPath(path)))

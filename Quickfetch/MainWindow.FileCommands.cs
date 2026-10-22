@@ -48,7 +48,7 @@ public partial class MainWindow
                 default: FocusSearch(); break;
             }
         }
-        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage("无法完成文件操作：" + ex.Message); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法完成文件操作：") + ex.Message); }
         finally { _choosingFolder = false; }
     }
     private void Results_FileMouseDown(object sender, MouseButtonEventArgs e)
@@ -118,7 +118,7 @@ public partial class MainWindow
             Hide();
             dropped = DragDrop.DoDragDrop(this, data, DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
         }
-        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("file-drag", ex); SetMessage("无法拖放文件：" + ex.Message); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("file-drag", ex); SetMessage(Loc.T("无法拖放文件：") + ex.Message); }
         finally
         {
             safety.Stop(); PreviewQueryContinueDrag -= continueDrag;

@@ -136,5 +136,5 @@ public sealed record ShortcutItem(SearchResult Match, ImageSource? Icon) : ILaun
     public string Path => Match.Path;
     public string Initial => Match.Initial;
     public string Location => Match.Location;
-    public string MatchLabel => Match.Entry.IsRegisteredApp && Match.Tier == 6 ? "注册应用" : Match.MatchLabel;
+    public string MatchLabel => Match.Entry.IsRegisteredApp && Match.Tier == 6 ? Loc.T("注册应用") : Match.MatchLabel;
 }

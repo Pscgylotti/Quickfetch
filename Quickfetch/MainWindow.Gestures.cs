@@ -15,7 +15,7 @@ public partial class MainWindow
         var generation = ++_gestureGeneration;
         _gestures?.Dispose(); _gestures = null;
         _settings.Gestures ??= new();
-        GestureStatus.Text = _settings.Gestures.Enabled ? "全局监听准备中…" : "全局触屏手势已关闭";
+        GestureStatus.Text = _settings.Gestures.Enabled ? Loc.T("全局监听准备中…") : Loc.T("全局触屏手势已关闭");
         if (!_settings.Gestures.Enabled || _disposed || _inputSuspended || _gestureSettingsOpen) return;
         // The listener owns an immutable snapshot; changes replace it rather than race touch frames.
         var snapshot = JsonSerializer.Deserialize<GestureSettings>(JsonSerializer.Serialize(_settings.Gestures))!;
@@ -43,7 +43,7 @@ public partial class MainWindow
                         GestureActionRunner.Run(action, ShowLauncher);
                     }
                 }
-                catch (Exception ex) { GestureStatus.Text = "手势执行失败：" + ex.Message; _tray?.ShowBalloonTip(4000, "Quickfetch · 手势未执行", ex.Message, System.Windows.Forms.ToolTipIcon.Warning); }
+                catch (Exception ex) { GestureStatus.Text = Loc.T("手势执行失败：") + ex.Message; _tray?.ShowBalloonTip(4000, Loc.T("Quickfetch · 手势未执行"), ex.Message, System.Windows.Forms.ToolTipIcon.Warning); }
             });
         }, status =>
         {

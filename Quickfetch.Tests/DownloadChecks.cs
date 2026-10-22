@@ -51,6 +51,7 @@ internal static class DownloadChecks
                 await Wait(manager, a, j => j.Status == DownloadStatus.Paused);
                 await Task.Delay(200);
                 var frozen = manager.Snapshot().Single(j => j.Id == a); var bytes = frozen.Downloaded; await Task.Delay(200);
+                check(!manager.RemoveCompleted(a) && manager.Snapshot().Any(j => j.Id == a), "Removing history must never remove an unfinished download.");
                 check(manager.Snapshot().All(j => j.Status != DownloadStatus.Running) && manager.Snapshot().Single(j => j.Id == a).Downloaded == bytes && frozen.Ranges.Count > 0, "All-paused queues must stop and retain frozen segment visualization.");
                 manager.Resume(c); manager.Resume(b);
                 check(manager.Snapshot().Single(j => j.Id == c).Order < manager.Snapshot().Single(j => j.Id == b).Order, "Resumed tasks must queue in resume order.");
@@ -61,6 +62,8 @@ internal static class DownloadChecks
                 var bad = manager.Enqueue(probe with { Url = new Uri(server.Url("bad")) }, new(server.Url("bad"), "bad.bin"));
                 var rejected = await Wait(manager, bad, j => j.Status is DownloadStatus.Completed or DownloadStatus.Failed);
                 check(rejected.Status == DownloadStatus.Failed && rejected.CompletedPath.Length == 0, "Invalid Content-Range responses must fail rather than corrupt files.");
+                check(manager.RemoveCompleted(id) && !manager.RemoveCompleted(id) && manager.Snapshot().All(j => j.Id != id) && manager.Snapshot().Any(j => j.Id == fallbackId) && File.Exists(done.CompletedPath), "Removing one completed record must preserve its file and other records.");
+                check(!File.ReadAllText(Path.Combine(folder, "queue.json")).Contains(id.ToString()), "Single-record removal must be persisted immediately.");
                 manager.Cancel(bad); manager.ClearHistory();
                 check(manager.Snapshot().Length == 0 && File.Exists(done.CompletedPath), "Clearing history must preserve downloaded files.");
                 var persisted = manager.Enqueue(await manager.ProbeAsync(server.Url("slow")), new(server.Url("slow"), "persist.bin"));

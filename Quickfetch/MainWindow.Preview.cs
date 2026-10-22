@@ -19,7 +19,7 @@ public partial class MainWindow
             _previewTimer.Stop();
             if (!_settings.EnableFilePreview || !_fileMode || !IsVisible || Results.SelectedItem is not FileItem item) return;
             var cancellation = new CancellationTokenSource(); _previewCancellation = cancellation;
-            PreviewTitle.Text = item.Name; PreviewDetails.Text = "正在读取预览…";
+            PreviewTitle.Text = item.Name; PreviewDetails.Text = Loc.T("正在读取预览…");
             try
             {
                 var preview = await FilePreviewService.LoadAsync(item.File, cancellation.Token);
@@ -31,7 +31,7 @@ public partial class MainWindow
             catch (OperationCanceledException) { }
             catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex))
             {
-                if (!cancellation.IsCancellationRequested) PreviewDetails.Text = "无法预览：" + ex.Message;
+                if (!cancellation.IsCancellationRequested) PreviewDetails.Text = Loc.T("无法预览：") + ex.Message;
             }
             finally { if (ReferenceEquals(_previewCancellation, cancellation)) _previewCancellation = null; cancellation.Dispose(); }
         };
@@ -41,7 +41,7 @@ public partial class MainWindow
     {
         _previewTimer.Stop(); _previewCancellation?.Cancel();
         PreviewImage.Source = null; PreviewImage.Visibility = Visibility.Collapsed;
-        PreviewTitle.Text = "文件预览"; PreviewText.Text = ""; PreviewDetails.Text = "选择文件以预览";
+        PreviewTitle.Text = Loc.T("文件预览"); PreviewText.Text = ""; PreviewDetails.Text = Loc.T("选择文件以预览");
     }
     private void QueueFilePreview()
     {
@@ -52,7 +52,7 @@ public partial class MainWindow
     {
         _settings.EnableFilePreview = FilePreviewCheck.IsChecked == true;
         try { _saveSettings(_settings); }
-        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage("保存预览设置失败：" + ex.Message); }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("保存预览设置失败：") + ex.Message); }
         SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput);
         QueueFilePreview(); FocusSearch();
     }

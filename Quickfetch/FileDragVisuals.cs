@@ -28,11 +28,11 @@ internal sealed class FileDragVisuals : IDisposable
         var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)screenPoint.X, (int)screenPoint.Y));
         var bounds = screen.Bounds;
         _cancelBounds = new System.Drawing.Rectangle(bounds.Left, bounds.Top, bounds.Width, (int)Math.Round(60 * dpi.DpiScaleY));
-        var label = new TextBlock { Text = "拖到这里松手取消   ·   Esc 取消", FontSize = 17, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { Text = Loc.T("拖到这里松手取消   ·   Esc 取消"), FontSize = 17, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         label.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
         var border = new Border { CornerRadius = new CornerRadius(0, 0, 12, 12), BorderThickness = new Thickness(1), Child = label, Padding = new Thickness(16, 8, 16, 8) };
         border.SetResourceReference(Border.BackgroundProperty, "KeyboardSurface"); border.SetResourceReference(Border.BorderBrushProperty, "Accent");
-        _cancel = new Window { Title = "取消拖放", Width = bounds.Width / dpi.DpiScaleX, Height = 60,
+        _cancel = new Window { Title = Loc.T("取消拖放"), Width = bounds.Width / dpi.DpiScaleX, Height = 60,
             Left = bounds.Left / dpi.DpiScaleX, Top = bounds.Top / dpi.DpiScaleY,
             WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, Background = Brushes.Transparent, ShowInTaskbar = false,
             ShowActivated = false, Topmost = true, AllowDrop = true, Content = border };

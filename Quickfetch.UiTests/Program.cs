@@ -26,6 +26,9 @@ internal static class Program
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); passed++; }
         var app = new App { SuppressLauncherStartup = true };
         app.InitializeComponent();
+        if (args.Contains("--release005")) { Release005Checks.Run(Check); Console.WriteLine($"PASS: {passed} release UI checks"); app.Shutdown(); return; }
+        if (args.Contains("--download-records")) { DownloadUiChecks.RunRecordRemoval(Check); Console.WriteLine($"PASS: {passed} download record checks"); app.Shutdown(); return; }
+        if (args.Contains("--characters")) { var main = new MainWindow(new Settings(), _ => { }); CharacterMapChecks.Run(main, Check); Console.WriteLine($"PASS: {passed} character map UI checks"); app.Shutdown(); return; }
         DiagnosticsChecks.Run(Check);
         PowerLifecycleChecks.Run(Check);
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
@@ -33,6 +36,8 @@ internal static class Program
         FileUiChecks.Run(window, Check, args.Contains("--integration"));
         RegisteredPreviewChecks.Run(window, Check, args.Contains("--integration"));
         DownloadUiChecks.Run(window, Check);
+        CharacterMapChecks.Run(window, Check);
+        Release005Checks.Run(Check);
         Check(window.Icon is not null, "The launcher must expose the embedded Quickfetch window icon.");
         window.SetKeyboardPreference(true, showKeyboard: false);
         Check(GestureActionRunner.ParseShortcut("Ctrl + Alt + T").SequenceEqual(new ushort[] { 0x11, 0x12, 0x54 }), "Shortcut parser must preserve modifier/key order.");

@@ -42,7 +42,7 @@ public partial class MainWindow
             FocusSearch();
             if (SystemKeyboardRequest is { } request) { _systemKeyboardOwned = request(true); return; }
             if (SystemTouchKeyboard.Request(new WindowInteropHelper(this).Handle, true, out var error)) _systemKeyboardOwned = true;
-            else SetMessage(string.IsNullOrEmpty(error) ? "Windows 未打开系统触摸键盘；请检查系统触摸键盘设置。" : "系统键盘不可用：" + error);
+            else SetMessage(string.IsNullOrEmpty(error) ? Loc.T("Windows 未打开系统触摸键盘；请检查系统触摸键盘设置。") : Loc.T("系统键盘不可用：") + error);
         });
     }
     private void HideSystemKeyboard()

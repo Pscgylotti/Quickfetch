@@ -10,7 +10,7 @@ public sealed record ShortcutEntry(string Name, string Path)
     internal PinyinSearchKeys Keys => KeyCache.GetValue(this, static entry => PinyinSearchKeys.Create(entry.Name));
     public string SearchName => Keys.Full;
     public string Initial => SearchName.Length == 0 ? "?" : SearchName[..1].ToUpperInvariant();
-    public string Directory => IsRegisteredApp ? "Windows 注册应用" : System.IO.Path.GetDirectoryName(Path) ?? "";
+    public string Directory => IsRegisteredApp ? TextLocalization.T("Windows 注册应用") : System.IO.Path.GetDirectoryName(Path) ?? "";
 }
 
 public sealed record SearchResult(ShortcutEntry Entry, int Tier, int Position, int SubstringLength,
@@ -20,15 +20,15 @@ public sealed record SearchResult(ShortcutEntry Entry, int Tier, int Position, i
     public string Path => Entry.Path;
     public string Initial => Entry.Initial;
     public string Location => Entry.Directory;
-    public string MatchLabel => IsPinyin && Tier < 6 ? (Tier == 2 ? "拼音首字母" : "拼音匹配") : Tier switch
+    public string MatchLabel => IsPinyin && Tier < 6 ? (Tier == 2 ? TextLocalization.T("拼音首字母") : TextLocalization.T("拼音匹配")) : Tier switch
     {
-        0 => ExactName ? "完整名称" : "完整单词",
-        1 => "开头匹配",
-        2 => "首字母匹配",
-        3 => "中间匹配",
-        4 => "连续字串",
-        5 => "字母重叠",
-        _ => "快捷方式"
+        0 => ExactName ? TextLocalization.T("完整名称") : TextLocalization.T("完整单词"),
+        1 => TextLocalization.T("开头匹配"),
+        2 => TextLocalization.T("首字母匹配"),
+        3 => TextLocalization.T("中间匹配"),
+        4 => TextLocalization.T("连续字串"),
+        5 => TextLocalization.T("字母重叠"),
+        _ => TextLocalization.T("快捷方式")
     };
 }
 

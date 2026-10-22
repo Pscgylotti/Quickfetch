@@ -1,5 +1,17 @@
 using Quickfetch.Core;
 
+if (args.Contains("--character-benchmark"))
+{
+    var before = GC.GetTotalMemory(true); var timer = System.Diagnostics.Stopwatch.StartNew();
+    var catalog = CharacterCatalog.Instance; var loaded = timer.Elapsed.TotalMilliseconds;
+    var memory = GC.GetTotalMemory(true) - before; timer.Restart();
+    foreach (var query in new[] { "a", "alpha", "积分", "笑脸", "hiragana ka", "", "bold", "x" }) catalog.Search(query);
+    var coldSearches = timer.Elapsed.TotalMilliseconds; timer.Restart();
+    for (int repeat = 0; repeat < 100; repeat++) foreach (var query in new[] { "a", "alpha", "积分", "笑脸", "hiragana ka", "", "bold", "x" }) catalog.Search(query);
+    Console.WriteLine($"Character benchmark: load={loaded:0.0} ms; 8 searches={coldSearches:0.0} ms; 800 cache hits={timer.Elapsed.TotalMilliseconds:0.0} ms; retained={memory / 1048576d:0.00} MiB; entries={catalog.Entries.Count}");
+    return;
+}
+
 var passed = 0;
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); passed++; }
 ShortcutEntry E(string name, string? path = null) => new(name, path ?? "C:\\Links\\" + name + ".lnk");
@@ -71,4 +83,6 @@ GestureChecks.Run(Check);
 FileTouchChecks.Run(Check);
 PinyinChecks.Run(Check);
 await DownloadChecks.Run(Check);
+CharacterChecks.Run(Check);
+await UrlChecks.Run(Check);
 Console.WriteLine($"PASS: {passed} ranking/editing/touch/gesture/IPC checks");

@@ -13,8 +13,47 @@ using Quickfetch.Core;
 
 internal static class DownloadUiChecks
 {
+    internal static void RunRecordRemoval(Action<bool, string> check)
+    {
+        ((App)Application.Current).SetTheme();
+        var root = Path.Combine(Path.GetTempPath(), "Quickfetch-record-removal-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
+        try
+        {
+            var jobs = Enumerable.Range(0, 3).Select(i => new DownloadJob { Url = "https://example.com/record-" + i + ".txt", Name = "record-" + i + ".txt", Folder = root, Status = i == 2 ? DownloadStatus.Paused : DownloadStatus.Completed, CompletedPath = Path.Combine(root, "record-" + i + ".txt") }).ToArray();
+            foreach (var job in jobs) File.WriteAllText(job.CompletedPath, "Keep this file.");
+            var state = Path.Combine(root, "queue.json"); File.WriteAllText(state, JsonSerializer.Serialize(jobs));
+            var settings = new Settings { Downloads = new DownloadOptions { Folder = root, ProxyMode = "none" } };
+            using var manager = new DownloadManager(state, () => settings.Downloads);
+            var window = new DownloadsWindow(manager, settings, _ => { });
+            try
+            {
+                window.Show(); window.UpdateLayout();
+                var list = Descendants<ListBox>(window).Single();
+                VirtualizingPanel.SetIsVirtualizing(list, false); window.UpdateLayout();
+                var remove = Descendants<Button>(window).Where(b => b.Tag as string == "remove").ToArray();
+                check(remove.Count(b => b.Visibility == Visibility.Visible) == 2 && remove.Single(b => b.DataContext is DownloadView v && v.Job.Id == jobs[2].Id).Visibility == Visibility.Collapsed, "Only completed history items may expose record removal.");
+                remove.Single(b => b.DataContext is DownloadView v && v.Job.Id == jobs[0].Id).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                check(manager.Snapshot().Length == 2 && File.Exists(jobs[0].CompletedPath), "The history button must remove only its record and retain the downloaded file.");
+                var toast = new DownloadToast(jobs[1], manager);
+                try
+                {
+                    toast.Show(); toast.UpdateLayout();
+                    var button = Descendants<Button>(toast).Single(b => b.Content as string == "移除记录");
+                    check(button.IsVisible, "Completed notifications must expose their own record-removal action.");
+                    Save(toast, "artifacts/download-completed-toast-preview.png");
+                    button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    check(!toast.IsVisible && manager.Snapshot().Single().Id == jobs[2].Id && File.Exists(jobs[1].CompletedPath), "Removing a toast record must dismiss the toast, retain the file and preserve unfinished tasks.");
+                    check(JsonSerializer.Deserialize<DownloadJob[]>(File.ReadAllText(state))!.Single().Id == jobs[2].Id, "Removed records must stay absent in the persisted queue.");
+                }
+                finally { toast.Close(); }
+            }
+            finally { window.Close(); }
+        }
+        finally { foreach (var file in Directory.GetFiles(root)) File.Delete(file); Directory.Delete(root); }
+    }
     internal static void Run(MainWindow main, Action<bool, string> check)
     {
+        RunRecordRemoval(check);
         ((App)Application.Current).SetTheme();
         check(main.FindName("DownloadsButton") is Button, "The launcher must provide a download button without a permanent progress pane.");
         var root = Path.Combine(Path.GetTempPath(), "Quickfetch-ui-download-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);

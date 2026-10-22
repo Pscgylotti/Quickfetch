@@ -33,9 +33,9 @@ public partial class GestureSettingsWindow : Window
         }
         EnabledCheck.IsChecked = Result.Enabled;
         RightClickCheck.IsChecked = Result.TwoFingerRightClick;
-        var displays = new[] { new DisplayChoice("", "主显示器（默认）") }.Concat(Forms.Screen.AllScreens.Select((s, i) => new DisplayChoice(s.DeviceName, $"显示器 {i + 1} · {s.Bounds.Width} × {s.Bounds.Height}{(s.Primary ? " · 主屏" : "")}"))).ToArray();
+        var displays = new[] { new DisplayChoice("", Loc.T("主显示器（默认）")) }.Concat(Forms.Screen.AllScreens.Select((s, i) => new DisplayChoice(s.DeviceName, Loc.F($"显示器 {i + 1} · {s.Bounds.Width} × {s.Bounds.Height}{(s.Primary ? Loc.T(" · 主屏") : "")}")))).ToArray();
         DisplayPicker.ItemsSource = displays; DisplayPicker.SelectedItem = displays.FirstOrDefault(d => d.Name == Result.DisplayDeviceName) ?? displays[0];
-        foreach (var (gesture, label) in new[] { (TouchGesture.TopLeftDown, "顶部左半区 · 双指向下"), (TouchGesture.TopRightDown, "顶部右半区 · 双指向下"), (TouchGesture.LeftEdgeRight, "屏幕左侧 · 双指向右"), (TouchGesture.RightEdgeLeft, "屏幕右侧 · 双指向左") })
+        foreach (var (gesture, label) in new[] { (TouchGesture.TopLeftDown, Loc.T("顶部左半区 · 双指向下")), (TouchGesture.TopRightDown, Loc.T("顶部右半区 · 双指向下")), (TouchGesture.LeftEdgeRight, Loc.T("屏幕左侧 · 双指向右")), (TouchGesture.RightEdgeLeft, Loc.T("屏幕右侧 · 双指向左")) })
         {
             var editor = new ActionEditor(label, Result.ActionFor(gesture));
             _editors.Add(gesture, editor); Editors.Children.Add(editor);
@@ -61,10 +61,10 @@ public partial class GestureSettingsWindow : Window
     private sealed class ActionEditor : Border
     {
         public string Label { get; }
-        private readonly ComboBox _kind = new() { ItemsSource = new[] { "未设置", "快捷键", "启动程序 / 快捷方式" }, Margin = new Thickness(0, 8, 0, 0) };
-        private readonly TextBox _shortcut = new() { IsReadOnly = true, ToolTip = "点击后按下组合键；也可从下方预设中选择", Margin = new Thickness(0, 8, 0, 0) };
-        private readonly TextBox _program = new() { MinWidth = 160, Margin = new Thickness(0, 8, 0, 0), ToolTip = "程序的完整路径" };
-        private readonly TextBox _arguments = new() { Margin = new Thickness(0, 8, 0, 0), ToolTip = "可选：程序启动参数" };
+        private readonly ComboBox _kind = new() { ItemsSource = new[] { Loc.T("未设置"), Loc.T("快捷键"), Loc.T("启动程序 / 快捷方式") }, Margin = new Thickness(0, 8, 0, 0) };
+        private readonly TextBox _shortcut = new() { IsReadOnly = true, ToolTip = Loc.T("点击后按下组合键；也可从下方预设中选择"), Margin = new Thickness(0, 8, 0, 0) };
+        private readonly TextBox _program = new() { MinWidth = 160, Margin = new Thickness(0, 8, 0, 0), ToolTip = Loc.T("程序的完整路径") };
+        private readonly TextBox _arguments = new() { Margin = new Thickness(0, 8, 0, 0), ToolTip = Loc.T("可选：程序启动参数") };
         private readonly StackPanel _keys = new(), _launch = new();
         public ActionEditor(string label, GestureAction action)
         {
@@ -89,19 +89,19 @@ public partial class GestureSettingsWindow : Window
                 try { GestureActionRunner.ParseShortcut(candidate); _shortcut.Text = candidate; } catch (ArgumentException) { }
             };
             _keys.Children.Add(_shortcut);
-            var presets = new ComboBox { ItemsSource = new[] { "选择常用快捷键…", "Esc", "Win + S", "Win + E", "Win + D", "Win + Tab", "Alt + Tab", "Alt + F4", "Ctrl + Shift + Escape", "Win + Ctrl + Left", "Win + Ctrl + Right", "Win + A", "Win + N" }, SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0) };
+            var presets = new ComboBox { ItemsSource = new[] { Loc.T("选择常用快捷键…"), "Esc", "Win + S", "Win + E", "Win + D", "Win + Tab", "Alt + Tab", "Alt + F4", "Ctrl + Shift + Escape", "Win + Ctrl + Left", "Win + Ctrl + Right", "Win + A", "Win + N" }, SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0) };
             presets.SelectionChanged += (_, _) => { if (presets.SelectedIndex > 0) _shortcut.Text = (string)presets.SelectedItem; };
             _keys.Children.Add(presets);
             _program.Text = action.Program; _arguments.Text = action.Arguments;
-            var row = new DockPanel(); var browse = new Button { Content = "浏览…", MinHeight = 42, Margin = new Thickness(8, 8, 0, 0), BorderThickness = new Thickness(1) };
+            var row = new DockPanel(); var browse = new Button { Content = Loc.T("浏览…"), MinHeight = 42, Margin = new Thickness(8, 8, 0, 0), BorderThickness = new Thickness(1) };
             browse.SetResourceReference(ForegroundProperty, "Ink"); browse.SetResourceReference(BorderBrushProperty, "Line");
             browse.Click += (_, _) =>
             {
-                var picker = new OpenFileDialog { Title = "选择要启动的程序", Filter = "程序 / 快捷方式|*.exe;*.lnk;*.bat;*.cmd", DereferenceLinks = false };
+                var picker = new OpenFileDialog { Title = Loc.T("选择要启动的程序"), Filter = Loc.T("程序 / 快捷方式|*.exe;*.lnk;*.bat;*.cmd"), DereferenceLinks = false };
                 if (picker.ShowDialog(Window.GetWindow(this)) == true) _program.Text = picker.FileName;
             };
             DockPanel.SetDock(browse, Dock.Right); row.Children.Add(browse); row.Children.Add(_program); _launch.Children.Add(row);
-            _launch.Children.Add(new TextBlock { Text = "启动参数（可选；.lnk 在自身属性中设置）", FontSize = 11, Margin = new Thickness(0, 7, 0, 0) }); _launch.Children.Add(_arguments);
+            _launch.Children.Add(new TextBlock { Text = Loc.T("启动参数（可选；.lnk 在自身属性中设置）"), FontSize = 11, Margin = new Thickness(0, 7, 0, 0) }); _launch.Children.Add(_arguments);
             _kind.SelectionChanged += (_, _) => UpdateKind(); _kind.SelectedIndex = Math.Clamp((int)action.Kind, 0, 2); UpdateKind();
         }
         private void UpdateKind() { _keys.Visibility = _kind.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed; _launch.Visibility = _kind.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed; }

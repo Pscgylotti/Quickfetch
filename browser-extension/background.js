@@ -1,8 +1,9 @@
 const api = globalThis.browser || globalThis.chrome;
 const host = "com.quickfetch.downloads";
 const pending = new Set();
+const english = typeof navigator !== "undefined" && !(navigator.language || "en").toLowerCase().startsWith("zh");
 api.runtime.onInstalled.addListener(() => {
-  api.contextMenus.create({ id: "quickfetch-download", title: "使用 Quickfetch 下载", contexts: ["link"] });
+  api.contextMenus.create({ id: "quickfetch-download", title: english ? "Download with Quickfetch" : "使用 Quickfetch 下载", contexts: ["link"] });
 });
 async function send(url, name, referer, expectedSize) {
   return api.runtime.sendNativeMessage(host, { url, name, referer, expectedSize });
@@ -37,7 +38,7 @@ api.downloads.onCreated.addListener(async item => {
     if (paused) {
       try { await api.downloads.resume(item.id); } catch { /* Already completed/interrupted items stay visible in Edge. */ }
     }
-    await api.storage.local.set({ lastResult: "未接管，保留浏览器下载：" + String(error.message || error) });
+    await api.storage.local.set({ lastResult: (english ? "Not captured; keeping browser download: " : "未接管，保留浏览器下载：") + String(error.message || error) });
     await api.action.setBadgeText({ text: "!" });
   } finally { pending.delete(item.id); }
 });

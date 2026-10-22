@@ -90,7 +90,7 @@ internal sealed class RegisteredAppCatalog
             }
             if (_snapshot is not null && !force && !NeedsRefresh) return _snapshot with { ShortcutIds = shortcutIds };
             folder = ((dynamic)shell!).NameSpace("shell:AppsFolder");
-            if (folder is null) throw new IOException("Windows 应用目录不可用。");
+            if (folder is null) throw new IOException(Loc.T("Windows 应用目录不可用。"));
             items = ((dynamic)folder).Items();
             var found = new List<CachedApp>();
             var icons = new Dictionary<string, ImageSource?>(StringComparer.OrdinalIgnoreCase);
@@ -162,7 +162,7 @@ internal sealed class RegisteredAppCatalog
     }
     internal static void Activate(string id)
     {
-        if (!IsAppId(id)) throw new ArgumentException("无效的 Windows 应用标识。");
+        if (!IsAppId(id)) throw new ArgumentException(Loc.T("无效的 Windows 应用标识。"));
         var manager = (IActivationManager)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C"))!)!;
         try { manager.ActivateApplication(id, null, 0, out _); }
         finally { Release(manager); }

@@ -1,4 +1,4 @@
-param([string]$Version = '0.0.4')
+param([string]$Version = '0.0.5')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 foreach ($browser in @('edge','chrome','firefox')) {
