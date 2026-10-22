@@ -32,6 +32,7 @@ internal static class Program
         var window = new MainWindow(new Settings(), _ => { });
         FileUiChecks.Run(window, Check, args.Contains("--integration"));
         RegisteredPreviewChecks.Run(window, Check, args.Contains("--integration"));
+        DownloadUiChecks.Run(window, Check);
         Check(window.Icon is not null, "The launcher must expose the embedded Quickfetch window icon.");
         window.SetKeyboardPreference(true, showKeyboard: false);
         Check(GestureActionRunner.ParseShortcut("Ctrl + Alt + T").SequenceEqual(new ushort[] { 0x11, 0x12, 0x54 }), "Shortcut parser must preserve modifier/key order.");

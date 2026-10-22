@@ -1,4 +1,4 @@
-param([string]$Version = '0.0.3', [string]$RuntimeVersion = '10.0.13')
+param([string]$Version = '0.0.4', [string]$RuntimeVersion = '10.0.13')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $outputRoot = Join-Path $projectRoot 'artifacts'
@@ -15,7 +15,8 @@ foreach ($flavor in @('framework-dependent', 'portable')) {
     $packageFiles = @((Join-Path $publishFolder 'Quickfetch.exe'), (Join-Path $publishFolder 'README.md'), (Join-Path $publishFolder 'LICENSE'), (Join-Path $publishFolder 'CONTRIBUTORS.md'), (Join-Path $publishFolder 'THIRD-PARTY-NOTICES.md'), (Join-Path $publishFolder 'docs'))
     Compress-Archive -LiteralPath $packageFiles -DestinationPath $archive -Force
 }
-$hashes = Get-ChildItem -LiteralPath $outputRoot -Filter "Quickfetch-$Version-win-x64-*.zip" | Sort-Object Name | ForEach-Object {
+& (Join-Path $PSScriptRoot 'Package-Extensions.ps1') -Version $Version
+$hashes = Get-ChildItem -LiteralPath $outputRoot -Filter "Quickfetch-$Version-*.zip" | Sort-Object Name | ForEach-Object {
     $hash = Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256
     "$($hash.Hash.ToLowerInvariant())  $($_.Name)"
 }

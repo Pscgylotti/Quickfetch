@@ -18,3 +18,4 @@ jobs:
       - run: dotnet run --project Quickfetch.Tests -c Release
       - run: dotnet run --project Quickfetch.IconTests -c Release
       - run: dotnet run --project Quickfetch.UiTests -c Release
+      - run: node --test browser-extension/test.cjs

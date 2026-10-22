@@ -1,0 +1,20 @@
+{
+  "version": "0.0.4",
+  "name": "Quickfetch Downloads",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvRVDi3G7W8R7chbNyqAOKq3pZfr8f+Tuawc9rgfloc2O/reXolQZW7+UHd0+x9yMnubac3E773iakJUDJI9CWxyMO85Fr6KY4XI9TUbIjfeo84Mulv3qbMtNaYbIuTtmL/K3ZkR3uIwgPer01JSdbdtBxHAW5A5Dkr55iQDXGg84QRHzgXwPnwmDniqoFpHQhv+9Z5uj8LuVRWw4XL9YRWLpGEpB0B20IhUvmzItjCIHDEL0oXjydDjw3W8jiKszrjNH26LA3Dr6ckURQ9Dy8LTiP7KWJG8Ao4MlOudUxhC9zgHzmmHXPAw8ytuSmwANmkbDcfQmuqXsAH6FTOhYpQIDAQAB",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "description": "将浏览器文件下载加入 Quickfetch 后台下载队列",
+  "action": {
+    "default_title": "Quickfetch 下载",
+    "default_popup": "popup.html"
+  },
+  "manifest_version": 3,
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "contextMenus",
+    "storage"
+  ]
+}

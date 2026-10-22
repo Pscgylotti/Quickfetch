@@ -82,6 +82,12 @@ public partial class MainWindow
         _fileCancellation?.Cancel(); _fileTimer.Stop();
         if (resetLimit) _fileLimit = 500;
         MoreResults.Visibility = Visibility.Collapsed;
+        if (DownloadManager.TryUrl(Query.Text, out _))
+        {
+            Results.ItemsSource = Array.Empty<FileItem>(); InstallEverythingButton.Visibility = Visibility.Collapsed;
+            EmptyMessage.Text = "按 Enter：网页在浏览器中打开，文件加入后台下载队列。";
+            EmptyMessage.Visibility = Visibility.Visible; Status.Text = "网址 · Enter 打开 / 下载"; return;
+        }
         if (!RefreshEverythingAvailability()) return;
         if (string.IsNullOrWhiteSpace(Query.Text))
         {

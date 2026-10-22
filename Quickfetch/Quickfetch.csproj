@@ -5,11 +5,13 @@
     <ImplicitUsings>disable</ImplicitUsings><Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/Quickfetch.ico</ApplicationIcon>
-    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.3</Version>
+    <StartupObject>Quickfetch.Program</StartupObject>
+    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.4</Version>
     <PublishSingleFile>true</PublishSingleFile><SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier><DebugType>none</DebugType>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../browser-extension/*" Exclude="../browser-extension/test.cjs" LogicalName="Quickfetch.Edge.%(Filename)%(Extension)" />
     <Resource Include="Assets/Quickfetch.ico" />
     <None Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <ProjectReference Include="../Quickfetch.Core/Quickfetch.Core.csproj" />

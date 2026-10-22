@@ -26,7 +26,8 @@ public partial class App : Application
         _instance = new Mutex(true, "Local\\Quickfetch.Instance." + id, out var first);
         if (!first)
         {
-            try { using var signal = EventWaitHandle.OpenExisting("Local\\Quickfetch.Show." + id); signal.Set(); } catch (WaitHandleCannotBeOpenedException) { }
+            if (!Array.Exists(e.Args, arg => arg == "--background"))
+                try { using var signal = EventWaitHandle.OpenExisting("Local\\Quickfetch.Show." + id); signal.Set(); } catch (WaitHandleCannotBeOpenedException) { }
             Shutdown(); return;
         }
         _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\Quickfetch.Show." + id);
@@ -51,7 +52,7 @@ public partial class App : Application
         catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { AppDiagnostics.Current.Fault("power-notifications", ex); }
     }
 
-    private void SetTheme()
+    internal void SetTheme()
     {
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         if (key?.GetValue("AppsUseLightTheme") is int light && light == 0)

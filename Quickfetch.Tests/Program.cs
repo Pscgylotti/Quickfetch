@@ -70,4 +70,5 @@ Check(new FileEntry("Unknown", "C:\\", "C:\\Unknown", true, null, null).SizeText
 GestureChecks.Run(Check);
 FileTouchChecks.Run(Check);
 PinyinChecks.Run(Check);
+await DownloadChecks.Run(Check);
 Console.WriteLine($"PASS: {passed} ranking/editing/touch/gesture/IPC checks");

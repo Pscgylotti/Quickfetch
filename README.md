@@ -6,14 +6,20 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 ## 下载与运行
 
-在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.3**：
+在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.4**：
 
-- `Quickfetch-0.0.3-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
-- `Quickfetch-0.0.3-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
+- `Quickfetch-0.0.4-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
+- `Quickfetch-0.0.4-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 启动后驻留托盘，**Win + S** 打开搜索。设置中可开启开机启动；默认关闭。托盘右键退出会释放快捷键。`--background` 仅在后台启动。
 
 文件搜索可选依赖 [Everything](https://www.voidtools.com/downloads/)：支持 1.4 默认实例及 1.5a 实例，需在后台运行并启用 IPC。未检测到时显示“文件搜索不可用”及官方下载入口，应用启动仍可用。安装或启动后按 F5 重试。
+
+## 后台下载（0.0.4）
+
+文件模式输入 HTTP/HTTPS 网址后按 Enter，网页交给浏览器，文件加入后台队列。右上角下载按钮查看队列、分段图和历史；右下角进度浮窗支持收起/展开/关闭，关闭不停止下载。普通文件默认八个异步 worker，低于 10 MiB 先单 worker，测速较慢后扩展；支持暂停续传、系统或自定义代理，以及本机 FFmpeg 合并 HLS/m3u8 点播。完成后可打开、打开文件夹或移入回收站。
+
+Release 同时提供 Edge / Chrome / Firefox 扩展 ZIP，下载设置中可安装本机桥接。Firefox 附件未签名，仅支持临时加载；认证、POST、blob 和部分媒体清单仍需浏览器或专用工具。详见 [下载与扩展说明](docs/downloads.md)。
 
 ## 操作
 

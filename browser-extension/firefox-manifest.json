@@ -1,0 +1,33 @@
+{
+  "version": "0.0.4",
+  "name": "Quickfetch Downloads",
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "description": "将浏览器文件下载加入 Quickfetch 后台下载队列",
+  "action": {
+    "default_title": "Quickfetch 下载",
+    "default_popup": "popup.html"
+  },
+  "manifest_version": 3,
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "contextMenus",
+    "storage"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "quickfetch@pscgylotti",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "browsingActivity",
+          "websiteActivity"
+        ]
+      }
+    }
+  }
+}

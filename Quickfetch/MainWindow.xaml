@@ -56,6 +56,7 @@
           <Border BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="4" Padding="6,1,6,2" Margin="10,0,0,0" VerticalAlignment="Center"><TextBlock Text="Win + S" FontSize="10.5" Foreground="{DynamicResource Muted}"/></Border>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button x:Name="DownloadsButton" Style="{StaticResource HeaderAction}" Click="Downloads_Click" ToolTip="下载队列与历史" AutomationProperties.Name="下载队列与历史"><TextBlock Text="&#xE896;" Style="{StaticResource HeaderGlyph}"/></Button>
           <Button x:Name="ModeButton" Style="{StaticResource HeaderAction}" Click="Mode_Click" ToolTip="搜索文件 · Tab" AutomationProperties.Name="切换应用与文件搜索"><TextBlock Text="&#xE8AB;" Style="{StaticResource HeaderGlyph}"/></Button>
           <Button x:Name="KeyboardToggle" Style="{StaticResource HeaderAction}" Click="Keyboard_Click" ToolTip="展开或收起触屏键盘" AutomationProperties.Name="切换触屏键盘"><TextBlock Text="&#xE765;" Style="{StaticResource HeaderGlyph}" FontSize="19"/></Button>
           <Button x:Name="SettingsButton" Style="{StaticResource HeaderAction}" Click="Settings_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" Style="{StaticResource HeaderGlyph}"/></Button>

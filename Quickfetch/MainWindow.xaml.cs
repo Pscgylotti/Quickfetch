@@ -82,6 +82,7 @@ public partial class MainWindow : Window
 
     public void InitializeLauncher(bool background)
     {
+        InitializeDownloads();
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("打开 Quickfetch", null, (_, _) => Dispatcher.BeginInvoke(ShowLauncher));
         menu.Items.Add("快捷方式文件夹", null, (_, _) => Dispatcher.BeginInvoke(OpenShortcutFolder));
@@ -453,6 +454,7 @@ public partial class MainWindow : Window
 
     private void LaunchSelected(bool openDirectory = false)
     {
+        if (_fileMode && DownloadManager.TryUrl(Query.Text, out _)) { _ = SubmitUrl(); return; }
         if (Results.SelectedItem is not ILauncherItem item) return;
         try
         {
@@ -585,6 +587,7 @@ public partial class MainWindow : Window
     {
         if (_disposed) return;
         _disposed = true;
+        StopDownloads();
         CancelFilePreview();
         ConfigureOutsideClicks();
         StopModeTransition();
