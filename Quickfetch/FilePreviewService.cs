@@ -19,13 +19,34 @@ internal static class FilePreviewService
 {
     internal const int MaxTextBytes = 32768, MaxImageWidth = 640, MaxImageHeight = 480;
     private static readonly SemaphoreSlim Gate = new(1, 1);
-    internal static async Task<FilePreview> LoadAsync(FileEntry file, CancellationToken cancellation)
+    private static readonly LinkedList<(string Key, FilePreview Preview, long Bytes)> Cache = new();
+    private static long _cacheBytes;
+    internal static async Task<FilePreview> LoadAsync(FileEntry file, CancellationToken cancellation, Action<FilePreview>? progress = null)
     {
         await Gate.WaitAsync(cancellation);
         var completion = new TaskCompletionSource<FilePreview>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
-            try { completion.TrySetResult(Read(file, cancellation)); }
+            try
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var info = new FileInfo(file.Path);
+                var key = file.IsFolder ? "" : file.Path.ToUpperInvariant() + "|" + info.Length + "|" + info.LastWriteTimeUtc.Ticks + "|" + Loc.IsEnglish;
+                var hit = Cache.First;
+                while (hit is not null && hit.Value.Key != key) hit = hit.Next;
+                if (key.Length > 0 && hit is not null) { Cache.Remove(hit); Cache.AddFirst(hit); completion.TrySetResult(hit.Value.Preview); }
+                else
+                {
+                    var preview = Read(file, cancellation, progress);
+                    if (key.Length > 0)
+                    {
+                        var bytes = (long)(preview.Text.Length + preview.Details.Length) * 2 + (preview.Image is BitmapSource bitmap ? (long)bitmap.PixelWidth * bitmap.PixelHeight * 4 : 4096);
+                        Cache.AddFirst((key, preview, bytes)); _cacheBytes += bytes;
+                        while (Cache.Count > 16 || _cacheBytes > 8 * 1024 * 1024) { _cacheBytes -= Cache.Last!.Value.Bytes; Cache.RemoveLast(); }
+                    }
+                    completion.TrySetResult(preview);
+                }
+            }
             catch (OperationCanceledException) { completion.TrySetCanceled(cancellation); }
             catch (Exception ex) { completion.TrySetException(ex); }
             finally { Gate.Release(); }
@@ -33,7 +54,7 @@ internal static class FilePreviewService
         thread.SetApartmentState(ApartmentState.STA); thread.Start();
         return await completion.Task;
     }
-    private static FilePreview Read(FileEntry file, CancellationToken cancellation)
+    private static FilePreview Read(FileEntry file, CancellationToken cancellation, Action<FilePreview>? progress)
     {
         cancellation.ThrowIfCancellationRequested();
         var details = new List<string> { file.IsFolder ? Loc.T("文件夹") : Path.GetExtension(file.Path).ToUpperInvariant().TrimStart('.') + Loc.T(" 文件"), Loc.T("大小：") + file.SizeText, Loc.T("修改：") + file.DateText };
@@ -69,9 +90,21 @@ internal static class FilePreviewService
             var audio = new[] { ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".wma" }.Contains(extension);
             if (video || audio)
             {
+                // INCACHEONLY + THUMBNAILONLY: no codec startup on a Windows cache hit.
+                image = RegisteredAppCatalog.Extract(file.Path, 0x18, MaxImageWidth, MaxImageHeight);
+                if (image is not null) details.Add(Loc.T("预览：Windows 缓存缩略图"));
+                else
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    image = RegisteredAppCatalog.Extract(file.Path, 0x8, MaxImageWidth, MaxImageHeight);
+                    if (image is not null) details.Add(Loc.T("预览：Windows 媒体缩略图 / 专辑封面"));
+                }
+                if (image is not null) progress?.Invoke(new(file.Name, string.Join("\n", details), "", image));
                 ReadMediaProperties(file.Path, details);
                 cancellation.ThrowIfCancellationRequested();
-                var probe = FindTool("ffprobe.exe");
+                if (image is not null) progress?.Invoke(new(file.Name, string.Join("\n", details.Distinct()), "", image));
+                // System metadata normally suffices; probe only when useful fields are missing.
+                var probe = details.Any(d => d.StartsWith(Loc.T("时长") + "：")) && (!video || details.Any(d => d.StartsWith(Loc.T("视频宽度") + "："))) ? null : FindTool("ffprobe.exe");
                 if (probe is not null)
                 {
                     try
@@ -81,12 +114,12 @@ internal static class FilePreviewService
                     }
                     catch (Exception ex) when (ex is IOException or JsonException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                 }
-                var ffmpeg = FindTool("ffmpeg.exe");
+                var ffmpeg = image is null ? FindTool("ffmpeg.exe") : null;
                 if (ffmpeg is not null)
                 {
                     try
                     {
-                        var bytes = RunTool(ffmpeg, ["-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe", "-i", file.Path, "-map", "0:v:0", "-frames:v", "1", "-vf", "scale=640:480:force_original_aspect_ratio=decrease", "-f", "image2pipe", "-c:v", "png", "pipe:1"], 2 * 1024 * 1024, cancellation);
+                        var bytes = RunTool(ffmpeg, ["-nostdin", "-v", "error", "-probesize", "1048576", "-analyzeduration", "1000000", "-protocol_whitelist", "file,pipe", "-i", file.Path, "-threads", "1", "-map", "0:v:0", "-frames:v", "1", "-vf", "scale=640:480:force_original_aspect_ratio=decrease", "-f", "image2pipe", "-c:v", "png", "pipe:1"], 2 * 1024 * 1024, cancellation);
                         image = Decode(bytes);
                         details.Add(video ? Loc.T("预览：首个可解码视频帧") : Loc.T("预览：内嵌专辑封面"));
                     }
@@ -94,7 +127,7 @@ internal static class FilePreviewService
                 }
                 if (image is null)
                 {
-                    image = RegisteredAppCatalog.Extract(file.Path, 0x8, MaxImageWidth, MaxImageHeight);
+                    image = FileResultIcons.Get(file);
                     details.Add(video ? Loc.T("预览：Windows 缩略图（需对应解码器）") : Loc.T("无可用专辑封面时显示默认音乐图标"));
                 }
             }
@@ -116,16 +149,20 @@ internal static class FilePreviewService
         {
             shell = Activator.CreateInstance(Type.GetTypeFromProgID("Shell.Application")!);
             folder = ((dynamic)shell!).NameSpace(Path.GetDirectoryName(path)); item = ((dynamic)folder!).ParseName(Path.GetFileName(path));
+            string? frameWidth = null, frameHeight = null;
             foreach (var (property, label) in new[] { ("System.Image.Dimensions", Loc.T("原始分辨率")), ("System.Video.FrameWidth", Loc.T("视频宽度")), ("System.Video.FrameHeight", Loc.T("视频高度")), ("System.Media.Duration", Loc.T("时长")), ("System.Audio.SampleRate", Loc.T("采样率 (Hz)")), ("System.Audio.EncodingBitrate", Loc.T("音频比特率 (bit/s)")), ("System.Video.EncodingBitrate", Loc.T("视频比特率 (bit/s)")), ("System.Music.AlbumTitle", Loc.T("专辑")), ("System.Music.Artist", Loc.T("艺术家")) })
             {
                 object? value = ((dynamic)item!).ExtendedProperty(property);
                 if (value is null) continue;
                 var display = value is Array array ? string.Join(", ", array.Cast<object>()) : Convert.ToString(value);
                 if (property == "System.Media.Duration" && ulong.TryParse(display, out var ticks)) display = TimeSpan.FromTicks((long)Math.Min(ticks, (ulong)long.MaxValue)).ToString();
+                if (property == "System.Video.FrameWidth") frameWidth = display;
+                if (property == "System.Video.FrameHeight") frameHeight = display;
                 Add(details, label, display);
             }
+            if (!string.IsNullOrEmpty(frameWidth) && !string.IsNullOrEmpty(frameHeight)) details.Add(Loc.F($"媒体分辨率：{frameWidth} × {frameHeight}"));
         }
-        catch (COMException) { }
+        catch (Exception ex) when (ex is COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException) { }
         finally { Release(item); Release(folder); Release(shell); }
     }
     private static void ReadProbe(byte[] bytes, List<string> details)

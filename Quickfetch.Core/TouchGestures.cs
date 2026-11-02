@@ -1,6 +1,6 @@
 namespace Quickfetch.Core;
 
-public enum TouchGesture { TwoFingerTap, TopLeftDown, TopRightDown, LeftEdgeRight, RightEdgeLeft }
+public enum TouchGesture { TwoFingerTap, TopLeftDown, TopRightDown, LeftEdgeRight, RightEdgeLeft, ThreeFingerLeft, ThreeFingerRight, ThreeFingerUp, ThreeFingerDown, FourFingerUp, FourFingerDown }
 public enum GestureActionKind { Disabled, Shortcut, Program }
 public sealed class GestureAction
 {
@@ -16,7 +16,19 @@ public sealed class GestureSettings
     public double TapDistance { get; set; } = 80;
     public string DisplayDeviceName { get; set; } = "";
     public Dictionary<TouchGesture, GestureAction> Actions { get; set; } = new();
-    public GestureAction ActionFor(TouchGesture gesture) => Actions is not null && Actions.TryGetValue(gesture, out var action) && action is not null ? action : new();
+    public GestureAction ActionFor(TouchGesture gesture)
+    {
+        if (Actions is not null && Actions.TryGetValue(gesture, out var action) && action is not null) return action;
+        var shortcut = gesture switch
+        {
+            TouchGesture.ThreeFingerLeft => "Alt + Tab",
+            TouchGesture.ThreeFingerRight => "Alt + Shift + Tab",
+            TouchGesture.ThreeFingerUp => "Win + Tab",
+            TouchGesture.ThreeFingerDown => "Win + D",
+            _ => ""
+        };
+        return shortcut.Length > 0 ? new() { Kind = GestureActionKind.Shortcut, Shortcut = shortcut } : new();
+    }
 }
 public readonly record struct TouchContact(int Id, double X, double Y, bool Down = true);
 public readonly record struct GestureMatch(TouchGesture Gesture, double FirstX, double FirstY);
@@ -38,12 +50,14 @@ public sealed class TouchGestureRecognizer
     private readonly Dictionary<int, Track> _tracks = new();
     private long _started, _lastFrame;
     private bool _cancelled;
-    public void Reset() { _tracks.Clear(); _cancelled = false; }
+    private int _maxDown;
+    public void Reset() { _tracks.Clear(); _cancelled = false; _maxDown = 0; }
     public GestureMatch? Frame(IReadOnlyList<TouchContact> contacts, long milliseconds, double width, double height, double tapDistance = 80)
     {
         if (milliseconds - _lastFrame > 2000 || milliseconds < _lastFrame) Reset();
         _lastFrame = milliseconds;
         var down = contacts.Where(p => p.Down).ToArray();
+        _maxDown = Math.Max(_maxDown, down.Length);
         if (_tracks.Count == 0)
         {
             if (down.Length == 0) return null;
@@ -59,8 +73,8 @@ public sealed class TouchGestureRecognizer
             }
             else if (point.Down)
             {
-                if (_tracks.Count >= 2 || milliseconds - _started > 180 || _tracks.Values.Any(t => t.Lifted)) _cancelled = true;
-                if (_tracks.Count < 3) _tracks.Add(point.Id, new Track(point));
+                if (_tracks.Count >= 4 || milliseconds - _started > 180 || _tracks.Values.Any(t => t.Lifted)) _cancelled = true;
+                if (_tracks.Count < 5) _tracks.Add(point.Id, new Track(point));
             }
         }
         foreach (var (id, track) in _tracks)
@@ -72,14 +86,29 @@ public sealed class TouchGestureRecognizer
     }
     private GestureMatch? Match(long duration, double width, double height, double tapDistance)
     {
-        if (_cancelled || _tracks.Count != 2 || duration > 1400 || width <= 0 || height <= 0) return null;
+        if (_cancelled || _tracks.Count is not (2 or 3 or 4) || _maxDown != _tracks.Count || duration > 1400 || !double.IsFinite(width + height) || width <= 0 || height <= 0) return null;
         var pair = _tracks.Values.ToArray(); var a = pair[0]; var b = pair[1];
         GestureMatch Found(TouchGesture gesture) => new(gesture, a.Start.X, a.Start.Y);
+        if (pair.Length >= 3)
+        {
+            if (pair.Any(t => t.Start.X < 0 || t.Start.Y < 0 || t.Start.X > width || t.Start.Y > height)) return null;
+            bool Along(Track t, bool horizontal, int direction)
+            {
+                var primary = horizontal ? t.Last.X - t.Start.X : t.Last.Y - t.Start.Y;
+                var cross = horizontal ? t.Last.Y - t.Start.Y : t.Last.X - t.Start.X;
+                return primary * direction >= Math.Max(64, (horizontal ? width : height) * .08) && Math.Abs(cross) <= Math.Abs(primary) * .6;
+            }
+            if (pair.Length == 3 && pair.All(t => Along(t, true, -1))) return Found(TouchGesture.ThreeFingerLeft);
+            if (pair.Length == 3 && pair.All(t => Along(t, true, 1))) return Found(TouchGesture.ThreeFingerRight);
+            if (pair.All(t => Along(t, false, -1))) return Found(pair.Length == 4 ? TouchGesture.FourFingerUp : TouchGesture.ThreeFingerUp);
+            if (pair.All(t => Along(t, false, 1))) return Found(pair.Length == 4 ? TouchGesture.FourFingerDown : TouchGesture.ThreeFingerDown);
+            return null;
+        }
         if (duration <= 320 && pair.All(t => t.MaxMovement <= 18) && Distance(a.Start, b.Start) <= Math.Clamp(tapDistance, 20, 140))
             return Found(TouchGesture.TwoFingerTap);
-        const double edge = 32, travel = 100;
+        const double edge = 32;
         bool Vertical(Track t) => t.Last.Y - t.Start.Y >= height * 0.08 && Math.Abs(t.Last.X - t.Start.X) <= (t.Last.Y - t.Start.Y) * 0.6;
-        bool Horizontal(Track t, int direction) => (t.Last.X - t.Start.X) * direction >= travel && Math.Abs(t.Last.Y - t.Start.Y) <= Math.Abs(t.Last.X - t.Start.X) * 0.6;
+        bool Horizontal(Track t, int direction) => (t.Last.X - t.Start.X) * direction >= width * .06 && Math.Abs(t.Last.Y - t.Start.Y) <= Math.Abs(t.Last.X - t.Start.X) * 0.6;
         if (pair.All(t => t.Start.Y >= 0 && t.Start.Y <= height * 0.06 && Vertical(t)))
         {
             if (pair.All(t => t.Start.X < width / 2)) return Found(TouchGesture.TopLeftDown);

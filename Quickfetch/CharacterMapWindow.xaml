@@ -1,5 +1,5 @@
 <Window x:Class="Quickfetch.CharacterMapWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="{local:Tr T6f20bc22f061}" Icon="Assets/Quickfetch.ico" Width="920" Height="740" WindowStyle="None" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="Transparent" Foreground="{DynamicResource Ink}" FontFamily="Segoe UI" UseLayoutRounding="True" PreviewKeyDown="Window_KeyDown" xmlns:local="clr-namespace:Quickfetch">
+        Title="{local:Tr T6f20bc22f061}" Icon="Assets/Quickfetch.ico" Width="920" Height="740" WindowStyle="None" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="Transparent" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource UiFont}" UseLayoutRounding="True" PreviewKeyDown="Window_KeyDown" xmlns:local="clr-namespace:Quickfetch">
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="DownloadFields.xaml"/></ResourceDictionary.MergedDictionaries>

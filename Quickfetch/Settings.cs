@@ -8,9 +8,11 @@ namespace Quickfetch;
 public sealed class Settings
 {
     public string UiLanguage { get; set; } = "zh-CN";
+    public string CaptureFolder { get; set; } = "";
     public string Folder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
     public bool IncludeSubfolders { get; set; } = true;
     public bool IncludeRegisteredApps { get; set; } = true;
+    public string[] PinnedApps { get; set; } = [];
     public bool EnableFilePreview { get; set; }
     public Quickfetch.Core.DownloadOptions Downloads { get; set; } = new() { Folder = DownloadBridge.DefaultFolder() };
     public bool UseBuiltInKeyboard { get; set; } = true;

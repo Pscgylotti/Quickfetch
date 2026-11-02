@@ -14,7 +14,7 @@ public partial class MainWindow
     {
         var generation = ++_outsideGeneration;
         _outsideClicks?.Dispose(); _outsideClicks = null;
-        if (_disposed || !IsVisible || _tray is null || _draggingFile) return;
+        if (_disposed || !IsVisible || _tray is null || _draggingFile || _pinPressed is not null || _pinnedMenuOpen) return;
         try
         {
             _outsideClicks = new OutsideClickMonitor((x, y) =>
@@ -27,7 +27,7 @@ public partial class MainWindow
     }
     internal void DismissForOutsideClick(int x, int y)
     {
-        if (_disposed || !IsVisible || _choosingFolder || _draggingFile) return;
+        if (_disposed || !IsVisible || _choosingFolder || _draggingFile || _pinPressed is not null || _pinnedMenuOpen) return;
         if (!GetDismissBounds(new WindowInteropHelper(this).Handle, out var bounds)) return;
         if (x >= bounds.Left && x < bounds.Right && y >= bounds.Top && y < bounds.Bottom) return;
         var target = DismissWindowFromPoint(new DismissPoint { X = x, Y = y });

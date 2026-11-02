@@ -11,14 +11,14 @@ namespace Quickfetch;
 public partial class MainWindow
 {
     private UrlHistory _urlHistory = null!;
-    private bool _urlMode, _showingUrlHistory, _urlSelectionMoved;
+    private bool _urlMode, _showingUrlHistory, _urlSelectionMoved, _forceFileSearch;
     internal static bool IsUrlShortcut(Key key, ModifierKeys modifiers) => key == Key.W && modifiers == ModifierKeys.Alt;
     internal void EnterUrlMode()
     {
         ResetOpenAnimation(); _fileVersion++; _fileCancellation?.Cancel(); _fileTimer.Stop();
-        _urlMode = _fileMode = true; FileSortHeader.Visibility = Visibility.Collapsed;
-        ModeLabel.Text = Loc.T("网址 · HISTORY"); ModeButton.ToolTip = Loc.T("返回应用搜索");
-        Placeholder.Text = Loc.T("输入网址或搜索网址历史"); ResultHint.Text = Loc.T("↑ ↓ 选择    Tab 补全    Enter 打开 / 下载");
+        _urlMode = _fileMode = true; _forceFileSearch = false; FileSortHeader.Visibility = Visibility.Collapsed;
+        ModeLabel.Text = Loc.T("网址 · HISTORY"); ModeButton.ToolTip = Loc.T("返回文件检索 · Tab");
+        Placeholder.Text = Loc.T("输入网址或搜索网址历史");
         QuickKeyboard.SetFileMode(true); QuickKeyboard.SetUrlMode(true);
         SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput, animateModeBounds: true);
         ShowUrlSuggestions(); FocusSearch(); Query.SelectAll(); AnimateModeTransition();
@@ -26,6 +26,7 @@ public partial class MainWindow
     private void ShowUrlSuggestions()
     {
         _showingUrlHistory = true; _urlSelectionMoved = false;
+        ResultHint.Text = Loc.T("Tab 文件    Enter 打开 / 下载    Shift + Enter 作为网页打开并记住");
         CancelFilePreview(); FilePreviewPanel.Visibility = Visibility.Collapsed;
         FileSortHeader.Visibility = InstallEverythingButton.Visibility = MoreResults.Visibility = Visibility.Collapsed;
         Results.ItemTemplate = _appTemplate; QuickKeyboard.SetUrlMode(true);

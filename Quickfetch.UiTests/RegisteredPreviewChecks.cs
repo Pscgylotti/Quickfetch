@@ -35,6 +35,11 @@ internal static class RegisteredPreviewChecks
             var textPath = Path.Combine(temp, "sample.txt"); File.WriteAllText(textPath, "预览测试\n" + new string('a', 100000));
             var text = FilePreviewService.LoadAsync(new("sample.txt", temp, textPath, false, 100000, null), CancellationToken.None).GetAwaiter().GetResult();
             check(text.Text.StartsWith("预览测试") && text.Text.Length < 33000 && text.Text.Contains("32 KiB"), "Text preview must be bounded and support UTF-8.");
+            var warm = FilePreviewService.LoadAsync(new("sample.txt", temp, textPath, false, 100000, null), CancellationToken.None).GetAwaiter().GetResult();
+            check(ReferenceEquals(text, warm), "Repeated unchanged previews must reuse the bounded memory cache.");
+            File.WriteAllText(textPath, "Changed preview");
+            var changed = FilePreviewService.LoadAsync(new("sample.txt", temp, textPath, false, 15, null), CancellationToken.None).GetAwaiter().GetResult();
+            check(changed.Text == "Changed preview" && !ReferenceEquals(changed, warm), "Changing file size or timestamp must invalidate its cached preview.");
             using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
             try { FilePreviewService.LoadAsync(new("sample.txt", temp, textPath, false, 100000, null), cancelled.Token).GetAwaiter().GetResult(); check(false, "Cancelled previews must stop."); }
             catch (OperationCanceledException) { check(true, "Cancelled previews stop."); }
@@ -62,8 +67,8 @@ internal static class RegisteredPreviewChecks
                     if (!File.Exists(path)) continue;
                     var preview = FilePreviewService.LoadAsync(new(name, Path.GetDirectoryName(path)!, path, false, new FileInfo(path).Length, null), CancellationToken.None).GetAwaiter().GetResult();
                     check(preview.Image is System.Windows.Media.Imaging.BitmapSource { PixelWidth: <= 640, PixelHeight: <= 480, IsFrozen: true }, "Media previews must remain bounded and frozen: " + name);
-                    if (name == "video.mp4") check(preview.Details.Contains("首个可解码") && preview.Details.Contains("1280 × 720") && preview.Details.Contains("比特率"), "Video must expose its first frame, original size, duration and bitrate.");
-                    if (name == "audio.mp3") check(preview.Details.Contains("Quickfetch Test Album") && preview.Details.Contains("44100") && preview.Details.Contains("内嵌专辑"), "Music must expose embedded art, album and sample rate.");
+                    if (name == "video.mp4") check((preview.Details.Contains("首个可解码") || preview.Details.Contains("Windows")) && preview.Details.Contains("1280 × 720") && preview.Details.Contains("比特率"), "Video must expose its first frame, original size, duration and bitrate.");
+                    if (name == "audio.mp3") check(preview.Details.Contains("Quickfetch Test Album") && preview.Details.Contains("44100") && (preview.Details.Contains("内嵌专辑") || preview.Details.Contains("Windows")), "Music must expose embedded art, album and sample rate.");
                 }
             }
         }
@@ -100,10 +105,12 @@ internal static class RegisteredPreviewChecks
     {
         window.ShowLauncher();
         ((Button)window.FindName("ModeButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        FileUiChecks.PumpAnimation(window);
         var results = (ListBox)window.FindName("Results");
         results.ItemsSource = Enumerable.Range(0, 200).Select(i => new FileItem(new("test" + i, "C:\\", "C:\\test" + i, false, i, null))).ToArray();
         window.UpdateLayout();
         var scroll = Descendant<ScrollViewer>(results)!;
+        scroll.ScrollToTop(); window.UpdateLayout();
         var bar = Descendants<ScrollBar>(scroll).First(b => b.Orientation == Orientation.Vertical);
         bar.ApplyTemplate(); var track = (Track)bar.Template.FindName("PART_Track", bar); window.UpdateLayout();
         check(bar.ActualWidth >= 32 && TouchScrollBar.GetEnabled(bar), "Scrollbar must provide a wide transparent touch target.");

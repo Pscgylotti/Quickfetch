@@ -191,7 +191,7 @@ internal sealed class GlobalTouchGestures : IDisposable
         {
             using var device = Device.Open(raw.Handle);
             if (device is null) continue;
-            device.CheckReports(); verified++;
+            device.CheckReports(); device.CheckReports(3); device.CheckReports(4); verified++;
         }
         return verified;
     }
@@ -252,13 +252,13 @@ internal sealed class GlobalTouchGestures : IDisposable
             return _frames.Add((int)count, slots, now);
         }
         public void Reset() { _frames.Reset(); Recognizer.Reset(); }
-        public void CheckReports()
+        public void CheckReports(int contacts = 2)
         {
             // Exercise parallel and hybrid packets using the device's own report layout.
             var reportId = _fingers[0].Report;
-            var slots = _fingers.Where(f => f.Report == reportId).Take(2).ToArray();
+            var slots = _fingers.Where(f => f.Report == reportId).Take(contacts).ToArray();
             TouchContact[]? result = null;
-            for (var first = 0; first < 2; first += slots.Length)
+            for (var first = 0; first < contacts; first += slots.Length)
             {
                 var report = new byte[_reportLength];
                 if (HidP_InitializeReportForID(0, reportId, _data, report, (uint)report.Length) < 0) throw new InvalidOperationException("Cannot initialize touchscreen HID fixture.");
@@ -267,8 +267,8 @@ internal sealed class GlobalTouchGestures : IDisposable
                     if (HidP_SetUsageValue(0, page, link, usage, value, _data, report, (uint)report.Length) < 0) throw new InvalidOperationException("Cannot encode touchscreen HID fixture.");
                 }
                 var countCap = _values.First(v => v.Page == 0x0D && v.Usage == 0x54 && (v.Report == 0 || v.Report == reportId));
-                Set(0x0D, countCap.Link, 0x54, first == 0 ? 2u : 0u);
-                for (var i = 0; i < slots.Length && first + i < 2; i++)
+                Set(0x0D, countCap.Link, 0x54, first == 0 ? (uint)contacts : 0u);
+                for (var i = 0; i < slots.Length && first + i < contacts; i++)
                 {
                     var finger = slots[i];
                     Set(0x0D, finger.Link, 0x51, (uint)(first + i + 1));
@@ -279,7 +279,7 @@ internal sealed class GlobalTouchGestures : IDisposable
                 }
                 result = Parse(report, 100 + first);
             }
-            if (result is null || result.Length != 2 || result.Any(p => !p.Down) || result.Select(p => p.Id).Distinct().Count() != 2 || Math.Abs(result[0].X - 0.2) > 0.01 || Math.Abs(result[1].X - 0.3) > 0.01)
+            if (result is null || result.Length != contacts || result.Any(p => !p.Down) || result.Select(p => p.Id).Distinct().Count() != contacts || result.Where((p, index) => Math.Abs(p.X - (0.2 + index * 0.1)) > 0.01).Any())
                 throw new InvalidOperationException("Native touchscreen HID decode check failed.");
             Reset();
         }

@@ -121,10 +121,13 @@ internal static class FileUiChecks
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (SystemParameters.ClientAreaAnimation)
             check(Math.Abs(window.Width - 784) < .1, "Switching must defer the target resize instead of jumping to it before the first animation frame.");
+        var layout = (Grid)window.FindName("ModeLayout");
+        if (SystemParameters.ClientAreaAnimation) check(double.IsFinite(layout.Width), "The destination layout must be fixed while native window bounds animate.");
         var samples = new List<NativeRect>();
         EventHandler sample = (_, _) => { GetWindowRect(new WindowInteropHelper(window).Handle, out var bounds); samples.Add(bounds); };
         CompositionTarget.Rendering += sample;
         PumpAnimation(window); CompositionTarget.Rendering -= sample;
+        check(double.IsNaN(layout.Width), "The fixed transition layout must be released on completion.");
         check(Math.Abs(window.Width - 660) < 1, "The native resize must finish at the app-mode width.");
         if (SystemParameters.ClientAreaAnimation && samples.Count > 1)
         {
@@ -158,7 +161,7 @@ internal static class FileUiChecks
     }
     // Pumps at least 260 ms and then until the native resize reports completion (bounded), so a slow
     // first composed frame on a loaded machine cannot cut the 180 ms transition short.
-    private static void PumpAnimation(MainWindow window)
+    internal static void PumpAnimation(MainWindow window)
     {
         var active = typeof(MainWindow).GetField("_modeTransitionActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         var started = System.Diagnostics.Stopwatch.StartNew();

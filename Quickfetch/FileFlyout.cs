@@ -21,7 +21,7 @@ internal sealed class FileFlyout : Window
         Title = Loc.T("文件操作"); Width = 294; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false; Topmost = true; Background = Brushes.Transparent;
-        FontFamily = new FontFamily("Segoe UI");
+        FontFamily = new FontFamily("Microsoft YaHei UI");
         var panel = new StackPanel { Margin = new Thickness(6) };
         var toolbar = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, 0, 3) };
         Add(toolbar, "\uE8C6", Loc.T("剪切"), FileMenuAction.Cut, true);

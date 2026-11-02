@@ -35,7 +35,7 @@ public partial class GestureSettingsWindow : Window
         RightClickCheck.IsChecked = Result.TwoFingerRightClick;
         var displays = new[] { new DisplayChoice("", Loc.T("主显示器（默认）")) }.Concat(Forms.Screen.AllScreens.Select((s, i) => new DisplayChoice(s.DeviceName, Loc.F($"显示器 {i + 1} · {s.Bounds.Width} × {s.Bounds.Height}{(s.Primary ? Loc.T(" · 主屏") : "")}")))).ToArray();
         DisplayPicker.ItemsSource = displays; DisplayPicker.SelectedItem = displays.FirstOrDefault(d => d.Name == Result.DisplayDeviceName) ?? displays[0];
-        foreach (var (gesture, label) in new[] { (TouchGesture.TopLeftDown, Loc.T("顶部左半区 · 双指向下")), (TouchGesture.TopRightDown, Loc.T("顶部右半区 · 双指向下")), (TouchGesture.LeftEdgeRight, Loc.T("屏幕左侧 · 双指向右")), (TouchGesture.RightEdgeLeft, Loc.T("屏幕右侧 · 双指向左")) })
+        foreach (var (gesture, label) in new[] { (TouchGesture.TopLeftDown, Loc.T("顶部左半区 · 双指向下")), (TouchGesture.TopRightDown, Loc.T("顶部右半区 · 双指向下")), (TouchGesture.LeftEdgeRight, Loc.T("屏幕左侧 · 双指向右")), (TouchGesture.RightEdgeLeft, Loc.T("屏幕右侧 · 双指向左")), (TouchGesture.ThreeFingerLeft, Loc.T("三指左滑 · 下一个窗口")), (TouchGesture.ThreeFingerRight, Loc.T("三指右滑 · 上一个窗口")), (TouchGesture.ThreeFingerUp, Loc.T("三指上滑 · 任务视图")), (TouchGesture.ThreeFingerDown, Loc.T("三指下滑 · 显示桌面")), (TouchGesture.FourFingerUp, Loc.T("四指向上")), (TouchGesture.FourFingerDown, Loc.T("四指向下")) })
         {
             var editor = new ActionEditor(label, Result.ActionFor(gesture));
             _editors.Add(gesture, editor); Editors.Children.Add(editor);
@@ -89,7 +89,7 @@ public partial class GestureSettingsWindow : Window
                 try { GestureActionRunner.ParseShortcut(candidate); _shortcut.Text = candidate; } catch (ArgumentException) { }
             };
             _keys.Children.Add(_shortcut);
-            var presets = new ComboBox { ItemsSource = new[] { Loc.T("选择常用快捷键…"), "Esc", "Win + S", "Win + E", "Win + D", "Win + Tab", "Alt + Tab", "Alt + F4", "Ctrl + Shift + Escape", "Win + Ctrl + Left", "Win + Ctrl + Right", "Win + A", "Win + N" }, SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0) };
+            var presets = new ComboBox { ItemsSource = new[] { Loc.T("选择常用快捷键…"), "Esc", "Win + S", "Win + E", "Win + D", "Win + Tab", "Alt + Tab", "Alt + Shift + Tab", "Alt + F4", "Ctrl + Shift + Escape", "Win + Ctrl + Left", "Win + Ctrl + Right", "Win + A", "Win + N" }, SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0) };
             presets.SelectionChanged += (_, _) => { if (presets.SelectedIndex > 0) _shortcut.Text = (string)presets.SelectedItem; };
             _keys.Children.Add(presets);
             _program.Text = action.Program; _arguments.Text = action.Arguments;

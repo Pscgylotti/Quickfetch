@@ -1,8 +1,9 @@
-param([string]$Version = '0.0.5', [string]$RuntimeVersion = '10.0.13')
+param([string]$Version = '0.0.6', [string]$RuntimeVersion = '10.0.13')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $outputRoot = Join-Path $projectRoot 'artifacts'
 New-Item -ItemType Directory -Force $outputRoot | Out-Null
+& (Join-Path $PSScriptRoot 'Build-WindowsAiOcr.ps1')
 foreach ($flavor in @('framework-dependent', 'portable')) {
     $publishFolder = Join-Path $outputRoot ('publish-' + $flavor)
     $selfContained = if ($flavor -eq 'portable') { 'true' } else { 'false' }
@@ -13,6 +14,7 @@ foreach ($flavor in @('framework-dependent', 'portable')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs') -Destination $publishFolder -Recurse -Force
     $archive = Join-Path $outputRoot "Quickfetch-$Version-win-x64-$flavor.zip"
     $packageFiles = @((Join-Path $publishFolder 'Quickfetch.exe'), (Join-Path $publishFolder 'README.md'), (Join-Path $publishFolder 'LICENSE'), (Join-Path $publishFolder 'CONTRIBUTORS.md'), (Join-Path $publishFolder 'THIRD-PARTY-NOTICES.md'), (Join-Path $publishFolder 'docs'))
+    $packageFiles += Join-Path $publishFolder 'windows-ai-ocr'
     Compress-Archive -LiteralPath $packageFiles -DestinationPath $archive -Force
 }
 & (Join-Path $PSScriptRoot 'Package-Extensions.ps1') -Version $Version

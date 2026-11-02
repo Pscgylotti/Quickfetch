@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
+using System.Threading;
+using System.Threading.Tasks;
 using Quickfetch.Core;
 
 namespace Quickfetch;
@@ -61,8 +63,27 @@ internal static class GestureActionRunner
         }
         else if (action.Kind != GestureActionKind.Disabled) throw new ArgumentException(Loc.T("动作类型无效。"));
     }
-    internal static void Run(GestureAction action, Action showLauncher)
+    private static readonly SemaphoreSlim ShortcutGate = new(1, 1);
+    internal static string[] HeldModifiers(Func<int, bool>? down = null)
     {
+        down ??= key => (GetAsyncKeyState(key) & 0x8000) != 0;
+        return new[] { (0x10, "Shift"), (0x11, "Ctrl"), (0x12, "Alt"), (0x5B, "Left Win"), (0x5C, "Right Win") }.Where(key => down(key.Item1)).Select(key => key.Item2).ToArray();
+    }
+    internal static async Task WaitForModifierRelease(Func<string[]> read, CancellationToken cancellation, int timeoutMilliseconds = 500)
+    {
+        var started = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var held = read(); if (held.Length == 0) return;
+            if (Stopwatch.GetElapsedTime(started).TotalMilliseconds >= timeoutMilliseconds)
+                throw new InvalidOperationException(Loc.F($"系统检测到修饰键仍按下：{string.Join(" + ", held)}。请松开后重试，并检查系统触摸键盘或粘滞键。"));
+            await Task.Delay(15, cancellation);
+        }
+    }
+    internal static async Task RunAsync(GestureAction action, Action showLauncher, CancellationToken cancellation = default)
+    {
+        cancellation.ThrowIfCancellationRequested();
         Validate(action);
         if (action.Kind == GestureActionKind.Disabled) return;
         if (action.Kind == GestureActionKind.Program)
@@ -72,13 +93,20 @@ internal static class GestureActionRunner
             return;
         }
         var keys = ParseShortcut(action.Shortcut);
-        // Preserve the user's physical modifier state instead of releasing held keys.
-        if (new[] { 0x10, 0x11, 0x12, 0x5B, 0x5C }.Any(k => (GetAsyncKeyState(k) & 0x8000) != 0))
-            throw new InvalidOperationException(Loc.T("请先松开键盘上的修饰键再执行手势。"));
-        if (keys.SequenceEqual(new ushort[] { 0x5B, 0x53 })) { showLauncher(); return; }
-        var input = keys.Select(k => Keyboard(k, 0)).Concat(keys.Reverse().Select(k => Keyboard(k, 2))).ToArray();
-        Send(input);
+        if (keys.SequenceEqual(new ushort[] { 0x5B, 0x53 })) { cancellation.ThrowIfCancellationRequested(); showLauncher(); return; }
+        await ShortcutGate.WaitAsync(cancellation);
+        try
+        {
+            // GetAsyncKeyState also includes injected / on-screen keyboard state. Let the
+            // previous shortcut finish processing before deciding that a key is held.
+            await WaitForModifierRelease(() => HeldModifiers(), cancellation);
+            var input = keys.Select(k => Keyboard(k, 0)).Concat(keys.Reverse().Select(k => Keyboard(k, 2))).ToArray();
+            cancellation.ThrowIfCancellationRequested(); Send(input);
+            await WaitForModifierRelease(() => HeldModifiers(), cancellation);
+        }
+        finally { ShortcutGate.Release(); }
     }
+
     internal static void RightClick(int x, int y)
     {
         var left = GetSystemMetrics(76); var top = GetSystemMetrics(77);

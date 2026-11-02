@@ -6,13 +6,14 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/Quickfetch.ico</ApplicationIcon>
     <StartupObject>Quickfetch.Program</StartupObject>
-    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.5</Version>
+    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.6</Version>
     <PublishSingleFile>true</PublishSingleFile><SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier><DebugType>none</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="../browser-extension/*" Exclude="../browser-extension/test.cjs" LogicalName="Quickfetch.Edge.%(Filename)%(Extension)" />
     <Resource Include="Assets/Quickfetch.ico" />
+    <Content Include="../artifacts/windows-ai-ocr/runtime/**/*" Link="windows-ai-ocr/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <None Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <ProjectReference Include="../Quickfetch.Core/Quickfetch.Core.csproj" />
     <RuntimeHostConfigurationOption Include="Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation" Value="true" />

@@ -9,10 +9,11 @@ public partial class MainWindow
     {
         if (_disposed) return;
         _inputSuspended = true;
+        _gestureActions.Cancel(); CancelPinnedDrag(); _gestureNotice?.Close();
         ++_gestureGeneration;
         _gestures?.Dispose(); _gestures = null;
         _shortcut?.Dispose(); _shortcut = null;
-        _doubleTap.Reset(); _listTouchId = null; _listTouchItem = null;
+        _doubleTap.Reset(); _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null; ReleaseResultMouseCapture();
         _fileTimer.Stop(); _fileCancellation?.Cancel(); _caretBlink.Stop();
     }
     internal void ResumeBackgroundInput()

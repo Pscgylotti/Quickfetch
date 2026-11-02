@@ -82,7 +82,7 @@ internal sealed class DownloadToast : Window
     {
         _job = job; _manager = manager; _view = new DownloadView(job);
         Width = Math.Min(390, SystemParameters.WorkArea.Width - 24); Height = 194; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; ShowActivated = false; Topmost = true; Background = Brushes.Transparent;
-        FontFamily = new FontFamily("Segoe UI"); UseLayoutRounding = true;
+        FontFamily = new FontFamily("Microsoft YaHei UI"); UseLayoutRounding = true;
         SetResourceReference(ForegroundProperty, "Ink");
         WindowChrome.SetWindowChrome(this, new WindowChrome { CaptionHeight = 0, GlassFrameThickness = new Thickness(0), ResizeBorderThickness = new Thickness(0), CornerRadius = new CornerRadius(10) });
         var stack = new StackPanel { Margin = new Thickness(12, 8, 12, 8) }; var border = new Border { Child = stack, CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1) };

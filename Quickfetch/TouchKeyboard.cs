@@ -55,7 +55,16 @@ public sealed class TouchKeyboard : Border
     internal void SetUrlMode(bool enabled)
     {
         foreach (UIElement child in _grid.Children)
-            if (child is Button key && key.Tag as string == "mode") { key.Content = enabled ? Loc.T("补全网址") : Loc.T("应用 / 文件"); key.ToolTip = enabled ? Loc.T("补全选中的网址 · Tab") : Loc.T("切换应用与文件搜索"); }
+        {
+            if (child is not Button key) continue;
+            if (key.Tag as string == "mode") { key.Content = enabled ? Loc.T("返回文件") : Loc.T("应用 / 文件"); key.ToolTip = enabled ? Loc.T("返回文件检索 · Tab") : Loc.T("切换应用与文件搜索"); }
+            else if (key.Tag as string == "directory")
+            {
+                key.Content = enabled ? Loc.T("网页打开") : Loc.T("打开目录");
+                key.ToolTip = enabled ? Loc.T("作为网页打开并记住 · Shift + Enter") : Loc.T("打开目录");
+                AutomationProperties.SetName(key, (string)key.Content);
+            }
+        }
     }
     internal void SetCharacterMode(bool composer)
     {

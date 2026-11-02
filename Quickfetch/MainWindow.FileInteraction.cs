@@ -91,9 +91,8 @@ public partial class MainWindow
         var point = Results.PointFromScreen(new Point(x, y));
         return point.X >= 0 && point.Y >= 0 && point.X < Results.ActualWidth && point.Y < Results.ActualHeight;
     }
-    private bool FileResultsTouchDown(TouchEventArgs e)
+    private bool HandleResultsTouchDown(TouchEventArgs e)
     {
-        if (!LocalFileTouch) return false;
         var point = e.GetTouchPoint(Results).Position;
         if (!Results.TouchesCaptured.Any()) _fileTouches.Reset();
         if (!_fileTouches.Active)
@@ -106,22 +105,23 @@ public partial class MainWindow
         _fileTouches.Down(e.TouchDevice.Id, point.X, point.Y, Environment.TickCount64, _settings.Gestures.TapDistance);
         e.TouchDevice.Capture(Results); e.Handled = true; return true;
     }
-    private bool FileResultsTouchMove(TouchEventArgs e)
+    private bool HandleResultsTouchMove(TouchEventArgs e)
     {
-        if (!LocalFileTouch || !_fileTouches.Active) return false;
+        if (!_fileTouches.Active) return false;
         var point = e.GetTouchPoint(Results).Position;
         if ((point - _fileHoldPoint).Length > 12) { _fileHoldMoved = true; _fileHold.Stop(); }
         var delta = _fileTouches.Move(e.TouchDevice.Id, point.X, point.Y);
         if (delta != 0 && FindScrollViewer(Results) is { } scroll) { scroll.ScrollToVerticalOffset(scroll.VerticalOffset - delta); _doubleTap.Reset(); }
         e.Handled = true; return true;
     }
-    private bool FileResultsTouchUp(TouchEventArgs e)
+    private bool HandleResultsTouchUp(TouchEventArgs e)
     {
-        if (!LocalFileTouch || !_fileTouches.Active) return false;
+        if (!_fileTouches.Active) return false;
         var point = e.GetTouchPoint(Results).Position;
         _fileHold.Stop();
         var result = _fileTouches.Up(e.TouchDevice.Id, point.X, point.Y, Environment.TickCount64);
         e.TouchDevice.Capture(null); e.Handled = true;
+        ReleaseResultMouseCapture();
         var item = _fileTouchItem;
         if (!_fileTouches.Active) _fileTouchItem = null;
         if (item is null || !Results.Items.Contains(item)) { _doubleTap.Reset(); return true; }
@@ -133,11 +133,21 @@ public partial class MainWindow
         }
         else if (result.Action == FileTouchAction.Tap)
         {
-            Results.SelectedItem = item;
+            SelectTouchedResult(item);
             if (_doubleTap.Tap(item.Path, Environment.TickCount64, point.X, point.Y, System.Windows.Forms.SystemInformation.DoubleClickTime)) LaunchSelected();
         }
         else _doubleTap.Reset();
         return true;
+    }
+    internal void SelectTouchedResult(ILauncherItem item)
+    {
+        Results.SelectedItem = item;
+        ReleaseResultMouseCapture();
+        if (_touchInput) FocusSearch();
+    }
+    private void ReleaseResultMouseCapture()
+    {
+        if (Mouse.Captured is DependencyObject captured && (ReferenceEquals(captured, Results) || Results.IsAncestorOf(captured))) Mouse.Capture(null);
     }
     private static ScrollViewer? FindScrollViewer(DependencyObject parent)
     {

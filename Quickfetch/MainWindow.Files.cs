@@ -43,6 +43,9 @@ public partial class MainWindow
             ConfigureOutsideClicks();
             if (!IsVisible)
             {
+                CancelPinnedDrag();
+                _activationRetry.Stop(); _restoringLauncherFocus = false;
+                Results.ReleaseAllTouchCaptures(); ReleaseResultMouseCapture();
                 StopModeTransition();
                 _fileHold.Stop();
                 HideSystemKeyboard();
@@ -57,11 +60,14 @@ public partial class MainWindow
     private void Mode_Click(object sender, RoutedEventArgs e) => SwitchMode();
     private void SwitchMode()
     {
+        CancelPinnedDrag();
+        var returningToFiles = _urlMode || _showingUrlHistory;
         _urlMode = false; _showingUrlHistory = false; QuickKeyboard.SetUrlMode(false);
         ResetOpenAnimation();
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
-        var transferredQuery = _fileMode ? "" : Query.Text;
-        _fileMode = !_fileMode;
+        var transferredQuery = returningToFiles || !_fileMode ? Query.Text : "";
+        _fileMode = returningToFiles || !_fileMode;
+        _forceFileSearch = returningToFiles;
         _fileVersion++;
         _fileCancellation?.Cancel(); _fileTimer.Stop();
         FileSortHeader.Visibility = _fileMode ? Visibility.Visible : Visibility.Collapsed;
@@ -85,7 +91,7 @@ public partial class MainWindow
         _fileCancellation?.Cancel(); _fileTimer.Stop();
         if (resetLimit) _fileLimit = 500;
         MoreResults.Visibility = Visibility.Collapsed;
-        if (_urlMode || DownloadManager.TryUrl(Query.Text, out _))
+        if (_urlMode || (!_forceFileSearch && DownloadManager.TryUrl(Query.Text, out _)))
         {
             ShowUrlSuggestions(); return;
         }

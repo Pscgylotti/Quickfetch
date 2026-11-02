@@ -43,10 +43,6 @@ public partial class MainWindow : Window
     private bool _backdropPending;
     private bool _touchInput;
     private readonly DoubleTapTracker _doubleTap = new();
-    private int? _listTouchId;
-    private Point _listTouchStart;
-    private ILauncherItem? _listTouchItem;
-    private bool _listTouchMoved;
     private readonly ScaleTransform _openScale = new(1, 1);
     private readonly TranslateTransform _openShift = new();
     public string BackdropMode { get; private set; } = "Pending";
@@ -62,6 +58,7 @@ public partial class MainWindow : Window
         InitializeModes();
         InitializeFileColumns();
         InitializeFilePreview();
+        InitializePinnedDrag();
         LauncherSurface.RenderTransform = new TransformGroup { Children = { _openScale, _openShift } };
         _initialized = true;
         FolderLabel.Text = _settings.Folder;
@@ -109,7 +106,9 @@ public partial class MainWindow : Window
 
     public void ShowLauncher()
     {
-        if (_disposed || _draggingFile) return;
+        if (_disposed || _draggingFile || _captureBusy) return;
+        var previousForeground = GetForegroundWindow();
+        _restoringLauncherFocus = true;
         if (_tray is not null && !_loading && _settings.IncludeRegisteredApps && _registeredApps.NeedsRefresh)
             _ = RefreshCatalog(false, Array.Empty<string>());
         if (!IsVisible) { SettingsPanel.Visibility = Visibility.Collapsed; SetToggled(SettingsButton, false); }
@@ -123,8 +122,7 @@ public partial class MainWindow : Window
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, PlayOpenAnimation);
         }
         WindowState = WindowState.Normal;
-        Activate();
-        SetForegroundWindow(new WindowInteropHelper(this).Handle);
+        StartLauncherActivation(previousForeground);
         Query.Text = "";
         UpdateResults();
         ScheduleBackdrop();
@@ -318,9 +316,8 @@ public partial class MainWindow : Window
     }
     private void UpdateResults()
     {
+        RefreshPinnedApps();
         _doubleTap.Reset();
-        _listTouchItem = null;
-        _listTouchId = null;
         ScheduleCaret();
         Placeholder.Visibility = Query.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (_fileMode) { QueueFileSearch(); return; }
@@ -337,9 +334,11 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (IsCaptureShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; _ = OpenCapture(); return; }
         if (IsUrlShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; EnterUrlMode(); return; }
         if (IsCharacterMapShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; OpenCharacterMap(); return; }
-        if (e.Key == Key.Tab && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift) { if (_showingUrlHistory) CompleteUrl(); else SwitchMode(); e.Handled = true; return; }
+        if (_pinPressed is not null && e.Key == Key.Escape) { CancelPinnedDrag(); e.Handled = true; return; }
+        if (e.Key == Key.Tab && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift) { SwitchMode(); e.Handled = true; return; }
         if (_touchInput && e.Key != Key.Escape) { SetTouchKeyboard(false, physicalKeyboard: true); FocusSearch(); }
         if (e.Key == Key.Escape) { Hide(); e.Handled = true; }
         else if (e.Key is Key.Down or Key.Up)
@@ -362,6 +361,7 @@ public partial class MainWindow : Window
     private void SetTouchKeyboard(bool visible, bool physicalKeyboard = false, bool animateModeBounds = false)
     {
         StopModeTransition();
+        RefreshPinnedApps();
         // ReadOnly alone still allows WPF/Windows keyboard invocation on edit focus.
         // In touch mode keep focus on a non-edit surface; only our keys edit the query.
         _touchInput = _settings.UseBuiltInKeyboard && !physicalKeyboard && (visible || TabletPosture.IsTablet);
@@ -437,9 +437,12 @@ public partial class MainWindow : Window
     }
     private void KeyboardKeyPressed(string key)
     {
+        // A previous row tap must not keep promoted mouse capture over the keyboard.
+        ReleaseResultMouseCapture();
+        if (_touchInput) FocusSearch();
         if (key == "hide") SetTouchKeyboard(false);
         else if (key == "directory") { LaunchSelected(true); return; }
-        else if (key == "mode") { if (_showingUrlHistory) CompleteUrl(); else SwitchMode(); return; }
+        else if (key == "mode") { SwitchMode(); return; }
         else if (key == "enter") { LaunchSelected(); return; }
         else if (key is "up" or "down")
         {
@@ -459,10 +462,14 @@ public partial class MainWindow : Window
         FocusSearch();
     }
 
-    private void LaunchSelected(bool openDirectory = false)
+    internal void LaunchSelected(bool openDirectory = false)
     {
-        if (_urlMode || _showingUrlHistory) { _ = SubmitUrl(); return; }
+        if (_urlMode || _showingUrlHistory) { _ = SubmitUrl(forceWebpage: openDirectory); return; }
         if (Results.SelectedItem is not ILauncherItem item) return;
+        LaunchResult(item, openDirectory);
+    }
+    private void LaunchResult(ILauncherItem item, bool openDirectory = false)
+    {
         try
         {
             if (item is ShortcutItem app && app.Match.Entry.IsRegisteredApp)
@@ -492,41 +499,24 @@ public partial class MainWindow : Window
     private void SetMessage(string message) { Status.Text = message; Status.ToolTip = message; }
     private void Results_DoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (IsPinButton(e.OriginalSource as DependencyObject)) return;
         if (e.StylusDevice is not null) { e.Handled = true; return; }
         if (ItemsControl.ContainerFromElement(Results, e.OriginalSource as DependencyObject) is ListBoxItem) LaunchSelected();
     }
     private void Results_TouchDown(object sender, TouchEventArgs e)
     {
-        if (TouchScrollBar.Find(e.OriginalSource as DependencyObject) is not null) return;
-        if (FileResultsTouchDown(e)) return;
-        if (_listTouchId is int previous && !Results.TouchesOver.Any(touch => touch.Id == previous)) _listTouchId = null;
-        if (_listTouchId is not null) { _listTouchMoved = true; _doubleTap.Reset(); return; }
-        _listTouchId = e.TouchDevice.Id;
-        _listTouchStart = e.GetTouchPoint(Results).Position;
-        _listTouchMoved = false;
-        _listTouchItem = (ItemsControl.ContainerFromElement(Results, e.OriginalSource as DependencyObject) as ListBoxItem)?.Content as ILauncherItem;
+        if (IsPinButton(e.OriginalSource as DependencyObject) || TouchScrollBar.Find(e.OriginalSource as DependencyObject) is not null) return;
+        HandleResultsTouchDown(e);
     }
     private void Results_TouchMove(object sender, TouchEventArgs e)
     {
         if (TouchScrollBar.Find(e.TouchDevice.Captured as DependencyObject) is not null) return;
-        if (FileResultsTouchMove(e)) return;
-        if (_listTouchId != e.TouchDevice.Id) return;
-        if ((e.GetTouchPoint(Results).Position - _listTouchStart).Length > 12) { _listTouchMoved = true; _doubleTap.Reset(); }
+        HandleResultsTouchMove(e);
     }
     private void Results_TouchUp(object sender, TouchEventArgs e)
     {
         if (TouchScrollBar.Find(e.TouchDevice.Captured as DependencyObject) is not null) return;
-        if (FileResultsTouchUp(e)) return;
-        if (_listTouchId != e.TouchDevice.Id) return;
-        _listTouchId = null;
-        var item = _listTouchItem;
-        _listTouchItem = null;
-        if (_listTouchMoved || item is null || !Results.Items.Contains(item)) { _doubleTap.Reset(); return; }
-        var point = e.GetTouchPoint(Results).Position;
-        if ((point - _listTouchStart).Length > 12) { _doubleTap.Reset(); return; }
-        Results.SelectedItem = item;
-        if (_doubleTap.Tap(item.Path, Environment.TickCount64, point.X, point.Y, Forms.SystemInformation.DoubleClickTime)) LaunchSelected();
-        e.Handled = true; // Avoid a second launch from promoted mouse double-click messages.
+        HandleResultsTouchUp(e);
     }
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
@@ -536,8 +526,10 @@ public partial class MainWindow : Window
     private void Window_Deactivated(object? sender, EventArgs e)
     {
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null; _columnTouch = null;
-        _doubleTap.Reset(); _listTouchId = null; _listTouchItem = null;
-        if (!_choosingFolder && !_extensionsMenuOpen && !IsTouchKeyboardWindow(GetForegroundWindow())) Hide();
+        Results.ReleaseAllTouchCaptures(); ReleaseResultMouseCapture();
+        _doubleTap.Reset();
+        var foreground = GetForegroundWindow();
+        if (!(_restoringLauncherFocus && LauncherActivation.IsStartMenu(foreground)) && !_choosingFolder && !_extensionsMenuOpen && !_pinnedMenuOpen && !_pinDragging && !IsTouchKeyboardWindow(foreground)) Hide();
     }
     private void Header_Drag(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed && e.OriginalSource is TextBlock) DragMove(); }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
@@ -593,7 +585,12 @@ public partial class MainWindow : Window
     public void DisposeLauncher()
     {
         if (_disposed) return;
+        CancelPinnedDrag();
         _disposed = true;
+        _gestureActions.Cancel(); _gestureActions.Dispose(); _gestureNotice?.Close();
+        InputManager.Current.PreProcessInput -= Extensions_PreProcessInput;
+        ExtensionsButton.ContextMenu.IsOpen = false;
+        _activationRetry.Stop(); _restoringLauncherFocus = false;
         StopDownloads();
         CancelFilePreview();
         ConfigureOutsideClicks();
@@ -607,5 +604,4 @@ public partial class MainWindow : Window
         if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); }
         _trayIcon?.Dispose();
     }
-    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr handle);
 }

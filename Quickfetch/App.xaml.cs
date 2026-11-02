@@ -10,6 +10,7 @@ namespace Quickfetch;
 
 public partial class App : Application
 {
+    static App() => Window.FontFamilyProperty.OverrideMetadata(typeof(Window), new FrameworkPropertyMetadata(new FontFamily("Microsoft YaHei UI")));
     public App() => AppContext.SetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", true);
     internal bool SuppressLauncherStartup { get; init; }
     private Mutex? _instance;

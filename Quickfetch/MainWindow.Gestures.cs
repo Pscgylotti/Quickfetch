@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using System.Windows;
+using System.Threading;
 using Quickfetch.Core;
 
 namespace Quickfetch;
@@ -10,8 +11,18 @@ public partial class MainWindow
     private GlobalTouchGestures? _gestures;
     private int _gestureGeneration;
     private bool _gestureSettingsOpen;
+    private CancellationTokenSource _gestureActions = new();
+    private GestureNoticeWindow? _gestureNotice;
+    private void ShowGestureNotice(string message)
+    {
+        if (_gestureNotice is null) { _gestureNotice = new GestureNoticeWindow(); _gestureNotice.Closed += (_, _) => _gestureNotice = null; }
+        _gestureNotice.Display(message);
+    }
     private void ConfigureGestures()
     {
+        if (_disposed) return;
+        _gestureActions.Cancel(); _gestureActions.Dispose(); _gestureActions = new();
+        var cancellation = _gestureActions.Token;
         var generation = ++_gestureGeneration;
         _gestures?.Dispose(); _gestures = null;
         _settings.Gestures ??= new();
@@ -22,9 +33,9 @@ public partial class MainWindow
         _gestures = new GlobalTouchGestures(snapshot, (match, x, y) =>
         {
             if (Dispatcher.HasShutdownStarted) return;
-            Dispatcher.BeginInvoke(() =>
+            Dispatcher.BeginInvoke(async () =>
             {
-                if (_disposed || _draggingFile || Environment.TickCount64 < _suppressFileGestureUntil || generation != _gestureGeneration) return;
+                if (_disposed || _draggingFile || _pinPressed is not null || Environment.TickCount64 < _suppressFileGestureUntil || generation != _gestureGeneration) return;
                 try
                 {
                     if (match.Gesture == TouchGesture.TwoFingerTap)
@@ -40,10 +51,11 @@ public partial class MainWindow
                         if (action.Kind == GestureActionKind.Disabled) return;
                         // Shortcuts belong to the current foreground window, including Esc for this launcher.
                         if (action.Kind == GestureActionKind.Program && IsVisible) Hide();
-                        GestureActionRunner.Run(action, ShowLauncher);
+                        await GestureActionRunner.RunAsync(action, ShowLauncher, cancellation);
                     }
                 }
-                catch (Exception ex) { GestureStatus.Text = Loc.T("手势执行失败：") + ex.Message; _tray?.ShowBalloonTip(4000, Loc.T("Quickfetch · 手势未执行"), ex.Message, System.Windows.Forms.ToolTipIcon.Warning); }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { if (!_disposed && generation == _gestureGeneration) { AppDiagnostics.Current.Fault("gesture-action", ex); GestureStatus.Text = Loc.T("手势执行失败：") + ex.Message; ShowGestureNotice(ex.Message); } }
             });
         }, status =>
         {
@@ -55,6 +67,7 @@ public partial class MainWindow
     {
         if (_choosingFolder || _disposed) return;
         ShowLauncher(); _choosingFolder = true; _gestureSettingsOpen = true;
+        _gestureActions.Cancel();
         ++_gestureGeneration; _gestures?.Dispose(); _gestures = null;
         try
         {

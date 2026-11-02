@@ -132,6 +132,7 @@ public sealed class ShortcutIconCache
 
 public sealed record ShortcutItem(SearchResult Match, ImageSource? Icon) : ILauncherItem
 {
+    public bool CanPin => true;
     public string Name => Match.Name;
     public string Path => Match.Path;
     public string Initial => Match.Initial;

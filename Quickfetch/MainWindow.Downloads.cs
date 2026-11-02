@@ -32,15 +32,19 @@ public partial class MainWindow
         catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法打开下载面板：") + ex.Message); }
         finally { _choosingFolder = false; FocusSearch(); }
     }
-    private async Task SubmitUrl()
+    internal Action<string> OpenWebpage { get; set; } = url => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    private async Task SubmitUrl(bool forceWebpage = false)
     {
-        if (_urlSubmitting || !UrlHistory.TryAddress(UrlToOpen(), out var uri)) { if (!_urlSubmitting) SetMessage(Loc.T("请输入完整网址，或选择历史记录后按 Tab 补全。")); return; }
+        if (_urlSubmitting || !UrlHistory.TryAddress(UrlToOpen(), out var uri)) { if (!_urlSubmitting) SetMessage(Loc.T("请输入完整网址，或选择历史记录后按 Enter 打开。")); return; }
         _urlSubmitting = true;
         try
         {
-            SetMessage(Loc.T("正在打开网址…")); var probe = await _urlHistory.ResolveAsync(uri.AbsoluteUri, async url => { InitializeDownloads(); return await _downloads!.ProbeAsync(url); });
+            SetMessage(Loc.T("正在打开网址…"));
+            var probe = forceWebpage
+                ? new DownloadProbe(uri, uri.Host, null, false, null, null, false)
+                : await _urlHistory.ResolveAsync(uri.AbsoluteUri, async url => { InitializeDownloads(); return await _downloads!.ProbeAsync(url); });
             if (probe.IsFile) { InitializeDownloads(); _downloads!.Enqueue(probe, new(uri.AbsoluteUri)); }
-            else Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+            else OpenWebpage(uri.AbsoluteUri);
             try { _urlHistory.Record(uri.AbsoluteUri, probe.IsFile, probe.IsFile ? probe.Name : uri.Host, DateTimeOffset.UtcNow); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppDiagnostics.Current.Fault("url-history-save", ex); }
             Hide();

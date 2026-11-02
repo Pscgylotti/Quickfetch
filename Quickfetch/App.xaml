@@ -1,5 +1,6 @@
 <Application x:Class="Quickfetch.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Quickfetch" ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
+    <FontFamily x:Key="UiFont">Microsoft YaHei UI</FontFamily>
     <SolidColorBrush x:Key="TooltipSurface" Color="#F5F7FA"/>
     <Style TargetType="ToolTip">
       <Setter Property="Background" Value="{DynamicResource TooltipSurface}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/>
@@ -57,7 +58,7 @@
       </ControlTemplate></Setter.Value></Setter>
       <Style.Triggers><Trigger Property="Orientation" Value="Horizontal"><Setter Property="Height" Value="12"/><Setter Property="Width" Value="Auto"/></Trigger></Style.Triggers>
     </Style>
-    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
     <!-- Hover and press are overlays animated over the button's own background, so toggled
          backgrounds (mode, keyboard, settings, Enter key) keep their state while giving feedback. -->
     <Style TargetType="Button">
@@ -71,7 +72,7 @@
           <Border x:Name="PressLayer" Background="{DynamicResource Pressed}" CornerRadius="6" Opacity="0"/>
           <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" RecognizesAccessKey="True">
             <!-- Plain-string labels follow the button's Foreground instead of the app-wide Ink TextBlock style. -->
-            <ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/></Style></ContentPresenter.Resources>
+            <ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/></Style></ContentPresenter.Resources>
           </ContentPresenter>
         </Grid>
         <ControlTemplate.Triggers>

@@ -20,6 +20,7 @@ public partial class MainWindow
         if (!_modeTransitionActive) return;
         CompositionTarget.Rendering -= RenderModeTransition;
         _modeTransitionActive = false;
+        ModeLayout.ClearValue(WidthProperty); ModeLayout.HorizontalAlignment = HorizontalAlignment.Stretch;
         ResultsSurface.BeginAnimation(OpacityProperty, null); ResultsSurface.Opacity = 1;
         if (ResultsSurface.RenderTransform is TranslateTransform shift) { shift.BeginAnimation(TranslateTransform.YProperty, null); shift.Y = 0; }
     }
@@ -39,20 +40,22 @@ public partial class MainWindow
         // that first layout/render pass can take longer than the whole resize. Timing from the
         // click would skip most of the curve and read as a jump.
         _modeStarted = 0; _modeTransitionActive = true;
+        // Lay out the destination once. Reflowing text, columns and the keyboard at every
+        // intermediate HWND width caused the visible shudder even with monotonic native bounds.
+        ModeLayout.Width = Math.Max(1, _modeTargetWidth - LauncherSurface.BorderThickness.Left - LauncherSurface.BorderThickness.Right);
+        ModeLayout.HorizontalAlignment = HorizontalAlignment.Center; LauncherSurface.ClipToBounds = true;
         CompositionTarget.Rendering += RenderModeTransition;
-        ResultsSurface.BeginAnimation(OpacityProperty, new DoubleAnimation(.2, 1, TimeSpan.FromMilliseconds(160)) { FillBehavior = FillBehavior.Stop });
-        if (ResultsSurface.RenderTransform is TranslateTransform shift)
-            shift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(6, 0, TimeSpan.FromMilliseconds(200))
-            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
+        ResultsSurface.BeginAnimation(OpacityProperty, new DoubleAnimation(.88, 1, TimeSpan.FromMilliseconds(200)) { FillBehavior = FillBehavior.Stop });
     }
     private void RenderModeTransition(object? sender, EventArgs args)
     {
         if (!_modeTransitionActive) return;
         if (_modeStarted == 0) { _modeStarted = Stopwatch.GetTimestamp(); return; }
-        var progress = Math.Clamp(Stopwatch.GetElapsedTime(_modeStarted).TotalMilliseconds / 180, 0, 1);
+        var progress = Math.Clamp(Stopwatch.GetElapsedTime(_modeStarted).TotalMilliseconds / 220, 0, 1);
         var eased = 1 - Math.Pow(1 - progress, 3);
         var width = (int)Math.Round((_modeStart.Right - _modeStart.Left) + (_modeEndWidth - (_modeStart.Right - _modeStart.Left)) * eased);
-        var left = (int)Math.Round(_modeStart.Left + (_modeEndLeft - _modeStart.Left) * eased);
+        var center = _modeStart.Left + (_modeStart.Right - _modeStart.Left) / 2.0;
+        var left = (int)Math.Round(center - width / 2.0 + (_modeEndLeft + _modeEndWidth / 2.0 - center) * eased);
         // One atomic HWND move/resize per rendered frame, rounded once in physical
         // pixels. Separate Width/Left animations caused intermediate HWND jumps.
         if (width != _modeLastWidth || left != _modeLastLeft)

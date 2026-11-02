@@ -8,7 +8,7 @@ namespace Quickfetch;
 
 public partial class MainWindow
 {
-    private readonly DispatcherTimer _previewTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
+    private readonly DispatcherTimer _previewTimer = new() { Interval = TimeSpan.FromMilliseconds(90) };
     private CancellationTokenSource? _previewCancellation;
     private void InitializeFilePreview()
     {
@@ -22,7 +22,16 @@ public partial class MainWindow
             PreviewTitle.Text = item.Name; PreviewDetails.Text = Loc.T("正在读取预览…");
             try
             {
-                var preview = await FilePreviewService.LoadAsync(item.File, cancellation.Token);
+                var preview = await FilePreviewService.LoadAsync(item.File, cancellation.Token, partial =>
+                {
+                    if (Dispatcher.HasShutdownStarted) return;
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        if (cancellation.IsCancellationRequested || _disposed || !ReferenceEquals(Results.SelectedItem, item) || !IsVisible) return;
+                        PreviewImage.Source = partial.Image; PreviewImage.Visibility = partial.Image is null ? Visibility.Collapsed : Visibility.Visible;
+                        PreviewDetails.Text = partial.Details;
+                    });
+                });
                 if (cancellation.IsCancellationRequested || _disposed || !ReferenceEquals(Results.SelectedItem, item) || !IsVisible) return;
                 PreviewTitle.Text = preview.Title; PreviewDetails.Text = preview.Details;
                 PreviewImage.Source = preview.Image; PreviewImage.Visibility = preview.Image is null ? Visibility.Collapsed : Visibility.Visible;

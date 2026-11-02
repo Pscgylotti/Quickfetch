@@ -26,18 +26,26 @@ internal static class Program
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); passed++; }
         var app = new App { SuppressLauncherStartup = true };
         app.InitializeComponent();
+        if (args.Contains("--pin-drag")) { PinnedDragChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin drag and gesture notice checks"); app.Shutdown(); return; }
+        if (args.Contains("--pins")) { PinnedChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin and dropdown checks"); app.Shutdown(); return; }
+        if (args.Contains("--launcher-input")) { LauncherInputChecks.Run(Check, args.Contains("--start-menu")); Console.WriteLine($"PASS: {passed} launcher input checks"); app.Shutdown(); return; }
+        if (args.Contains("--capture")) { CaptureChecks.Run(Check, args.Contains("--integration")); Console.WriteLine($"PASS: {passed} screenshot checks"); app.Shutdown(); return; }
         if (args.Contains("--release005")) { Release005Checks.Run(Check); Console.WriteLine($"PASS: {passed} release UI checks"); app.Shutdown(); return; }
         if (args.Contains("--download-records")) { DownloadUiChecks.RunRecordRemoval(Check); Console.WriteLine($"PASS: {passed} download record checks"); app.Shutdown(); return; }
         if (args.Contains("--characters")) { var main = new MainWindow(new Settings(), _ => { }); CharacterMapChecks.Run(main, Check); Console.WriteLine($"PASS: {passed} character map UI checks"); app.Shutdown(); return; }
         DiagnosticsChecks.Run(Check);
         PowerLifecycleChecks.Run(Check);
+        LauncherInputChecks.Run(Check, startMenu: false);
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");
         var window = new MainWindow(new Settings(), _ => { });
+        PinnedChecks.Run(Check);
+        PinnedDragChecks.Run(Check);
         FileUiChecks.Run(window, Check, args.Contains("--integration"));
         RegisteredPreviewChecks.Run(window, Check, args.Contains("--integration"));
         DownloadUiChecks.Run(window, Check);
         CharacterMapChecks.Run(window, Check);
         Release005Checks.Run(Check);
+        CaptureChecks.Run(Check, args.Contains("--integration"));
         Check(window.Icon is not null, "The launcher must expose the embedded Quickfetch window icon.");
         window.SetKeyboardPreference(true, showKeyboard: false);
         Check(GestureActionRunner.ParseShortcut("Ctrl + Alt + T").SequenceEqual(new ushort[] { 0x11, 0x12, 0x54 }), "Shortcut parser must preserve modifier/key order.");
@@ -53,7 +61,13 @@ internal static class Program
         var gestureDialog = new GestureSettingsWindow(new Quickfetch.Core.GestureSettings());
         Check(gestureDialog.Icon is not null, "The settings window must use the same embedded application icon.");
         Check(((CheckBox)gestureDialog.FindName("EnabledCheck")).IsChecked == true && ((CheckBox)gestureDialog.FindName("RightClickCheck")).IsChecked == false, "Gesture dialog must reflect global-on/right-click-opt-in defaults.");
-        Check(((StackPanel)gestureDialog.FindName("Editors")).Children.Count == 4, "All four global edge gestures must have independent editors.");
+        Check(((StackPanel)gestureDialog.FindName("Editors")).Children.Count == 10, "All four edge, four three-finger and two four-finger gestures must have independent editors.");
+        foreach (var gesture in new[] { TouchGesture.ThreeFingerLeft, TouchGesture.ThreeFingerRight, TouchGesture.ThreeFingerUp, TouchGesture.ThreeFingerDown })
+        {
+            var action = gestureDialog.Result.ActionFor(gesture); GestureActionRunner.Validate(action);
+            Check(action.Kind == GestureActionKind.Shortcut, "Default three-finger actions must be valid keyboard shortcuts: " + gesture);
+        }
+        Check(GestureActionRunner.ParseShortcut("Alt + Shift + Tab").SequenceEqual(new ushort[] { 0x12, 0x10, 0x09 }), "Reverse window switching must press Alt+Shift+Tab and release modifiers afterward.");
         var invalidAction = new Quickfetch.Core.GestureAction { Kind = Quickfetch.Core.GestureActionKind.Program, Program = "missing.exe" };
         bool invalidProgram = false;
         try { GestureActionRunner.Validate(invalidAction); } catch (ArgumentException) { invalidProgram = true; }
