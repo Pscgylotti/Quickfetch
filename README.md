@@ -6,12 +6,12 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 ## 下载与运行
 
-在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.6**：
+在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.7**：
 
-- `Quickfetch-0.0.6-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
-- `Quickfetch-0.0.6-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
+- `Quickfetch-0.0.7-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
+- `Quickfetch-0.0.7-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
-更新内容见 [0.0.6 更新说明](docs/RELEASE-0.0.6.md)。界面文字统一使用微软雅黑 UI，避免中英文文件名回退到不同字体与字重。
+更新内容见 [0.0.7 更新说明](docs/RELEASE-0.0.7.md)。界面文字统一使用微软雅黑 UI，避免中英文文件名回退到不同字体与字重。
 
 启动后驻留托盘，**Win + S** 打开搜索。设置中可开启开机启动；默认关闭。托盘右键退出会释放快捷键。`--background` 仅在后台启动。
 
@@ -140,3 +140,5 @@ pwsh -File scripts/Package.ps1
 详见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。MIT License。
 
 应用模式左侧提供空的图标固定栏，点击应用行的图钉固定 / 取消固定；点击固定图标直接启动，右键可取消固定。固定图标支持触屏长按约 450ms 拖动及鼠标拖动，跟手显示图标预览、移动其他图标预览插入位置；松手保存顺序，拖到屏幕顶部区域松手取消固定，Esc / 拖到其他位置松手取消并恢复原顺序。右键菜单跟随主界面主题。固定身份保存到设置，支持快捷方式和 Windows 注册应用；临时缺失的应用保留固定设置，重新出现后恢复。
+
+文件面板收起后重新打开会保留当前查询、结果、多选与滚动位置，并自动全选搜索框；修改查询或按 F5 才重新搜索。Ctrl 点击多选，Shift 点击 / Shift+方向键连选，多选预览显示数量和总大小（未知大小会注明，不递归扫描文件夹）。Ctrl+C / Ctrl+X 复制 / 剪切所选文件，Ctrl+Shift+C 按行复制完整路径。触控板高精度滚动按像素合并，降低滚动灵敏度。

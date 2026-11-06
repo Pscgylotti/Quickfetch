@@ -26,6 +26,9 @@ internal sealed class CaptureReviewWindow : Window
     private readonly Viewbox _view = new() { Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
     private readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, PanningMode = PanningMode.Both };
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(16, 10, 16, 12) };
+    private readonly TextBox _qrText = new() { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 100, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    private readonly DockPanel _qrResult = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(8) };
+    private readonly Button _scanQr, _openQr;
     private readonly Button _recognize, _copySelection, _registerAi;
     private readonly List<(CaptureWord Word, ToggleButton Button)> _segments = [];
     private bool _closed, _working, _fit = true;
@@ -47,6 +50,7 @@ internal sealed class CaptureReviewWindow : Window
         caption.MouseLeftButtonDown += (_, e) => { if (e.ClickCount == 1) DragMove(); }; title.Children.Add(caption); DockPanel.SetDock(title, Dock.Top); root.Children.Add(title);
         var actions = new WrapPanel();
         _recognize = CaptureUi.Button("识别文字 · OCR", () => _ = Recognize()); actions.Children.Add(_recognize);
+        _scanQr = CaptureUi.Button("识别二维码", () => _ = RecognizeQr()); actions.Children.Add(_scanQr);
         _copySelection = CaptureUi.Button("复制所选文字", CopySelection); _copySelection.IsEnabled = false; actions.Children.Add(_copySelection);
         actions.Children.Add(CaptureUi.Button("全选文字", () => SelectAll(true)));
         actions.Children.Add(CaptureUi.Button("取消文字选择", () => SelectAll(false)));
@@ -62,6 +66,16 @@ internal sealed class CaptureReviewWindow : Window
         zoom.Children.Add(new TextBlock { Text = $"{image.PixelWidth} × {image.PixelHeight}", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) });
         DockPanel.SetDock(zoom, Dock.Top); root.Children.Add(zoom);
         _status.Text = Loc.T("点击 OCR 识别；随后点击图片上的词段，多选后复制。识别在本机完成。"); DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
+        var qrActions = new WrapPanel();
+        qrActions.Children.Add(CaptureUi.Button("复制二维码内容", () => Act(() => { _copyText(_qrText.Text); _status.Text = Loc.T("二维码内容已复制。"); })));
+        _openQr = CaptureUi.Button("打开链接", () => Act(() =>
+        {
+            if (ScreenshotQr.WebLink(_qrText.Text) is Uri uri)
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        }));
+        qrActions.Children.Add(_openQr);
+        DockPanel.SetDock(qrActions, Dock.Bottom); _qrResult.Children.Add(qrActions); _qrResult.Children.Add(_qrText);
+        DockPanel.SetDock(_qrResult, Dock.Bottom); root.Children.Add(_qrResult);
         var stage = new Grid { Width = image.PixelWidth, Height = image.PixelHeight, Background = Brushes.Black };
         stage.Children.Add(new Image { Source = image, Stretch = Stretch.Fill }); stage.Children.Add(_words); _view.Child = stage; _scroll.Content = _view; root.Children.Add(_scroll);
         _scroll.SizeChanged += (_, _) => { if (_fit) ResizePreview(); };
@@ -70,9 +84,31 @@ internal sealed class CaptureReviewWindow : Window
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { Close(); e.Handled = true; }
+            else if (_qrText.IsKeyboardFocusWithin) return;
             else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) { if (_segments.Any(s => s.Button.IsChecked == true)) CopySelection(); else Act(() => _copyImage(_image)); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { SelectAll(true); e.Handled = true; }
         };
+    }
+    private async Task RecognizeQr()
+    {
+        if (_closed || !_scanQr.IsEnabled) return;
+        _scanQr.IsEnabled = false; _qrResult.Visibility = Visibility.Collapsed;
+        _status.Text = Loc.T("正在识别二维码…");
+        try
+        {
+            var image = _image;
+            if (!image.IsFrozen) { image = (BitmapSource)image.Clone(); image.Freeze(); }
+            var result = await Task.Run(() => ScreenshotQr.Decode(image), _lifetime.Token);
+            if (_closed) return;
+            _status.Text = Loc.T(string.IsNullOrEmpty(result) ? "未识别到二维码，请尝试重新框选。" : "已识别二维码。");
+            if (string.IsNullOrEmpty(result)) return;
+            _qrText.Text = result;
+            _openQr.Visibility = ScreenshotQr.WebLink(result) is null ? Visibility.Collapsed : Visibility.Visible;
+            _qrResult.Visibility = Visibility.Visible;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { if (!_closed) _status.Text = Loc.T("二维码识别失败：") + ex.Message; }
+        finally { if (!_closed) _scanQr.IsEnabled = true; }
     }
     private void SetZoom(double factor) { _fit = false; _view.Width = Math.Clamp(_view.Width * factor, 100, _image.PixelWidth * 4.0); }
     private void ResizePreview() => _view.Width = Math.Max(1, Math.Min(_scroll.ViewportWidth > 0 ? _scroll.ViewportWidth - 12 : ActualWidth - 60, (_scroll.ViewportHeight > 0 ? _scroll.ViewportHeight - 12 : ActualHeight - 260) * _image.PixelWidth / _image.PixelHeight));

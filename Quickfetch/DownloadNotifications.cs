@@ -98,14 +98,14 @@ internal sealed class DownloadToast : Window
         _pause.Click += (_, _) => Act(() => { if (_job.Status is DownloadStatus.Queued or DownloadStatus.Running) manager.Pause(Id); else manager.Resume(Id); }); actions.Children.Add(_pause);
         _open.Click += (_, _) => Act(() => DownloadFileActions.Open(_job)); actions.Children.Add(_open);
         var folder = new Button { Content = Loc.T("打开文件夹"), MinHeight = 36, Padding = new Thickness(8, 2, 8, 2) }; folder.Click += (_, _) => Act(() => DownloadFileActions.Folder(_job)); actions.Children.Add(folder);
-        _delete.Click += (_, _) => Act(() => DownloadFileActions.Delete(_job)); actions.Children.Add(_delete);
-        _cancel.Click += (_, _) => Act(() => manager.Cancel(Id)); actions.Children.Add(_cancel);
+        _delete.Click += (_, _) => Act(() => DownloadFileActions.Delete(_job), closeOnSuccess: true); actions.Children.Add(_delete);
+        _cancel.Click += (_, _) => Act(() => manager.Cancel(Id), closeOnSuccess: true); actions.Children.Add(_cancel);
         _remove.Click += (_, _) => Act(() => manager.RemoveCompleted(Id)); actions.Children.Add(_remove); _body.Children.Add(actions);
         _timer.Tick += (_, _) => { Refresh(); if (_ended is DateTimeOffset ended && DateTimeOffset.Now - ended > TimeSpan.FromSeconds(20) && !IsMouseOver) Close(); };
         Loaded += (_, _) => { WindowBackdrop.Apply(new WindowInteropHelper(this).Handle); Refresh(); _timer.Start(); }; Closed += (_, _) => _timer.Stop();
         SizeChanged += (_, _) => { if (IsLoaded) WindowBackdrop.Apply(new WindowInteropHelper(this).Handle); };
     }
-    private void Act(Action action) { try { action(); Refresh(); } catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { _status.Text = ex.Message; } }
+    private void Act(Action action, bool closeOnSuccess = false) { try { action(); if (closeOnSuccess) Close(); else Refresh(); } catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { _status.Text = ex.Message; } }
     internal void Refresh()
     {
         var current = Array.Find(_manager.Snapshot(), job => job.Id == Id); if (current is null) { Close(); return; } _job = current;

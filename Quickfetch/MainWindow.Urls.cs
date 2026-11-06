@@ -16,6 +16,7 @@ public partial class MainWindow
     internal void EnterUrlMode()
     {
         ResetOpenAnimation(); _fileVersion++; _fileCancellation?.Cancel(); _fileTimer.Stop();
+        Results.SelectionMode = System.Windows.Controls.SelectionMode.Single;
         _urlMode = _fileMode = true; _forceFileSearch = false; FileSortHeader.Visibility = Visibility.Collapsed;
         ModeLabel.Text = Loc.T("网址 · HISTORY"); ModeButton.ToolTip = Loc.T("返回文件检索 · Tab");
         Placeholder.Text = Loc.T("输入网址或搜索网址历史");
@@ -25,6 +26,7 @@ public partial class MainWindow
     }
     private void ShowUrlSuggestions()
     {
+        Results.SelectionMode = System.Windows.Controls.SelectionMode.Single;
         _showingUrlHistory = true; _urlSelectionMoved = false;
         ResultHint.Text = Loc.T("Tab 文件    Enter 打开 / 下载    Shift + Enter 作为网页打开并记住");
         CancelFilePreview(); FilePreviewPanel.Visibility = Visibility.Collapsed;

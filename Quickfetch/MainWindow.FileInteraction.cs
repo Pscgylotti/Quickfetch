@@ -141,13 +141,35 @@ public partial class MainWindow
     }
     internal void SelectTouchedResult(ILauncherItem item)
     {
-        Results.SelectedItem = item;
+        _fileRangeAnchor = -1;
+        if (_fileMode && item is FileItem && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (Results.SelectedItems.Contains(item)) Results.SelectedItems.Remove(item); else Results.SelectedItems.Add(item);
+        }
+        else { if (Results.SelectionMode != SelectionMode.Single) Results.SelectedItems.Clear(); Results.SelectedItem = item; }
         ReleaseResultMouseCapture();
         if (_touchInput) FocusSearch();
     }
     private void ReleaseResultMouseCapture()
     {
         if (Mouse.Captured is DependencyObject captured && (ReferenceEquals(captured, Results) || Results.IsAncestorOf(captured))) Mouse.Capture(null);
+    }
+    private bool _wheelPending;
+    private double _wheelTarget;
+    private void Results_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (FindScrollViewer(Results) is not { } scroll || scroll.ScrollableHeight <= 0) return;
+        e.Handled = true;
+        if (!_wheelPending) _wheelTarget = scroll.VerticalOffset;
+        // Preserve high-resolution deltas; coalesce bursts rather than scrolling full rows.
+        _wheelTarget = Math.Clamp(_wheelTarget - e.Delta * .25, 0, scroll.ScrollableHeight);
+        if (_wheelPending) return;
+        _wheelPending = true;
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, () =>
+        {
+            _wheelPending = false;
+            if (IsVisible) scroll.ScrollToVerticalOffset(_wheelTarget);
+        });
     }
     private static ScrollViewer? FindScrollViewer(DependencyObject parent)
     {

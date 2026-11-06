@@ -27,6 +27,7 @@ internal static class Program
         var app = new App { SuppressLauncherStartup = true };
         app.InitializeComponent();
         if (args.Contains("--pin-drag")) { PinnedDragChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin drag and gesture notice checks"); app.Shutdown(); return; }
+        if (args.Contains("--file-session")) { FileSessionChecks.Run(Check); Console.WriteLine($"PASS: {passed} file workflow checks"); app.Shutdown(); return; }
         if (args.Contains("--pins")) { PinnedChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin and dropdown checks"); app.Shutdown(); return; }
         if (args.Contains("--launcher-input")) { LauncherInputChecks.Run(Check, args.Contains("--start-menu")); Console.WriteLine($"PASS: {passed} launcher input checks"); app.Shutdown(); return; }
         if (args.Contains("--capture")) { CaptureChecks.Run(Check, args.Contains("--integration")); Console.WriteLine($"PASS: {passed} screenshot checks"); app.Shutdown(); return; }
@@ -40,6 +41,7 @@ internal static class Program
         var window = new MainWindow(new Settings(), _ => { });
         PinnedChecks.Run(Check);
         PinnedDragChecks.Run(Check);
+        FileSessionChecks.Run(Check);
         FileUiChecks.Run(window, Check, args.Contains("--integration"));
         RegisteredPreviewChecks.Run(window, Check, args.Contains("--integration"));
         DownloadUiChecks.Run(window, Check);

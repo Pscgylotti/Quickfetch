@@ -15,6 +15,12 @@ internal static class CaptureChecks
 {
     internal static void Run(Action<bool, string> check, bool integration)
     {
+        const string qrUrl = "https://example.org/quickfetch?q=qr";
+        var writer = new ZXing.BarcodeWriterPixelData { Format = ZXing.BarcodeFormat.QR_CODE, Options = new ZXing.Common.EncodingOptions { Width = 240, Height = 240 } };
+        var qr = writer.Write(qrUrl);
+        var qrImage = BitmapSource.Create(qr.Width, qr.Height, 96, 96, PixelFormats.Bgra32, null, qr.Pixels, qr.Width * 4);
+        check(ScreenshotQr.Decode(qrImage) == qrUrl, "QR recognition must decode screenshot pixels without OCR.");
+        check(ScreenshotQr.WebLink(qrUrl)?.AbsoluteUri == qrUrl && ScreenshotQr.WebLink("file:///C:/example.exe") is null && ScreenshotQr.WebLink("plain text") is null, "Only HTTP(S) QR results may be opened.");
         var previousContext = SynchronizationContext.Current; SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         var root = Path.Combine(Path.GetTempPath(), "Quickfetch-capture-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
         try

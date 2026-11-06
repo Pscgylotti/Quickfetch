@@ -26,6 +26,8 @@ public partial class MainWindow
     private uint _fileSort = 1, _fileLimit = 500;
     private readonly DispatcherTimer _caretBlink = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private bool _caretPending;
+    private bool _fileSearchPending, _resumeFileSearch;
+    private double _fileViewportOffset;
     internal Func<bool> EverythingAvailable { get; set; } = () => EverythingClient.IsAvailable;
 
     private void InitializeModes()
@@ -33,11 +35,12 @@ public partial class MainWindow
         _fileSort = _settings.FileSort is >= 1 and <= 6 or 13 or 14 ? _settings.FileSort : 1;
         UpdateSortLabels();
         _appTemplate = Results.ItemTemplate;
+        Results.PreviewMouseWheel += Results_MouseWheel;
         _fileTimer.Tick += async (_, _) => { _fileTimer.Stop(); await SearchFiles(); };
         Query.SelectionChanged += (_, _) => ScheduleCaret();
         Query.SizeChanged += (_, _) => ScheduleCaret();
         Results.SelectionChanged += (_, _) => { if (_showingUrlHistory && Results.SelectedItem is UrlHistoryItem) _urlSelectionMoved = true; };
-        Results.PreviewMouseLeftButtonDown += (_, e) => { if (_showingUrlHistory && (ItemsControl.ContainerFromElement(Results, e.OriginalSource as DependencyObject) as ListBoxItem)?.Content is UrlHistoryItem) _urlSelectionMoved = true; };
+        Results.PreviewMouseLeftButtonDown += (_, e) => { _fileRangeAnchor = -1; if (_showingUrlHistory && (ItemsControl.ContainerFromElement(Results, e.OriginalSource as DependencyObject) as ListBoxItem)?.Content is UrlHistoryItem) _urlSelectionMoved = true; };
         IsVisibleChanged += (_, _) =>
         {
             ConfigureOutsideClicks();
@@ -49,8 +52,11 @@ public partial class MainWindow
                 StopModeTransition();
                 _fileHold.Stop();
                 HideSystemKeyboard();
+                var keepFiles = _fileMode && !_urlMode && !_showingUrlHistory;
+                _resumeFileSearch = keepFiles && _fileSearchPending;
+                if (keepFiles) _fileViewportOffset = FindScrollViewer(Results)?.VerticalOffset ?? 0;
                 _caretBlink.Stop(); _fileTimer.Stop(); _fileCancellation?.Cancel(); _fileVersion++;
-                Results.ItemsSource = Array.Empty<ILauncherItem>(); _fileLimit = 500;
+                if (!keepFiles) { Results.ItemsSource = Array.Empty<ILauncherItem>(); _fileLimit = 500; }
             }
             else ScheduleCaret();
         };
@@ -67,6 +73,7 @@ public partial class MainWindow
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
         var transferredQuery = returningToFiles || !_fileMode ? Query.Text : "";
         _fileMode = returningToFiles || !_fileMode;
+        Results.SelectionMode = _fileMode ? SelectionMode.Extended : SelectionMode.Single;
         _forceFileSearch = returningToFiles;
         _fileVersion++;
         _fileCancellation?.Cancel(); _fileTimer.Stop();
@@ -87,6 +94,7 @@ public partial class MainWindow
     }
     private void QueueFileSearch(bool resetLimit = true)
     {
+        _fileSearchPending = false; _resumeFileSearch = false; _fileRangeAnchor = -1;
         _fileVersion++;
         _fileCancellation?.Cancel(); _fileTimer.Stop();
         if (resetLimit) _fileLimit = 500;
@@ -95,7 +103,7 @@ public partial class MainWindow
         {
             ShowUrlSuggestions(); return;
         }
-        _showingUrlHistory = false; QuickKeyboard.SetUrlMode(false);
+        _showingUrlHistory = false; QuickKeyboard.SetUrlMode(false); Results.SelectionMode = SelectionMode.Extended;
         Results.ItemTemplate = (DataTemplate)FindResource("FileItemTemplate"); FileSortHeader.Visibility = Visibility.Visible;
         if (!RefreshEverythingAvailability()) return;
         if (string.IsNullOrWhiteSpace(Query.Text))
@@ -110,7 +118,7 @@ public partial class MainWindow
         Results.ItemsSource = Array.Empty<FileItem>();
         EmptyMessage.Text = Loc.T("正在检索 Everything…"); EmptyMessage.Visibility = Visibility.Visible;
         Status.Text = Loc.T("正在搜索…");
-        _fileTimer.Start();
+        _fileSearchPending = true; _fileTimer.Start();
     }
     private async Task SearchFiles()
     {
@@ -141,6 +149,7 @@ public partial class MainWindow
             Status.Text = Loc.T("Everything 未就绪");
             if (!EverythingClient.IsAvailable) RefreshEverythingAvailability();
         }
+        finally { if (version == _fileVersion) _fileSearchPending = false; }
     }
     private void Sort_Click(object sender, RoutedEventArgs e)
     {

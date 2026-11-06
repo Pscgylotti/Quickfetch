@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Quickfetch.Core;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -54,7 +56,25 @@ public partial class MainWindow
     }
     private void QueueFilePreview()
     {
+        if (_extendingFileSelection) return;
         CancelFilePreview();
+        var selected = Results.SelectedItems.OfType<FileItem>().ToArray();
+        if (_fileMode && !_urlMode && !_showingUrlHistory && IsVisible)
+        {
+            var show = _settings.EnableFilePreview || selected.Length > 1;
+            if ((FilePreviewPanel.Visibility == Visibility.Visible) != show)
+                SetTouchKeyboard(QuickKeyboard.Visibility == Visibility.Visible, physicalKeyboard: !_touchInput);
+            if (selected.Length > 1)
+            {
+                PreviewTitle.Text = Loc.F($"已选中 {selected.Length} 项");
+                var total = selected.Where(item => item.File.Size.HasValue).Sum(item => (decimal)item.File.Size!.Value);
+                var unknown = selected.Count(item => !item.File.Size.HasValue);
+                PreviewDetails.Text = Loc.T("总大小：") + FileEntry.FormatSize((long)Math.Min(total, long.MaxValue))
+                    + (unknown > 0 ? Loc.F($"（{unknown} 项大小未知，未计入）") : "");
+                PreviewText.Text = string.Join(Environment.NewLine, selected.Select(item => item.Name));
+                return;
+            }
+        }
         if (_settings.EnableFilePreview && _fileMode && IsVisible && Results.SelectedItem is FileItem) _previewTimer.Start();
     }
     private void FilePreview_Click(object sender, RoutedEventArgs e)

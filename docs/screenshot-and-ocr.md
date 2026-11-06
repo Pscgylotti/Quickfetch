@@ -23,3 +23,5 @@ API 说明：[Windows AI OCR](https://learn.microsoft.com/en-us/windows/ai/apis/
 ## English
 
 While the Quickfetch window is open, press **Alt+S** or choose **Extensions → Screenshot · OCR**. Select a region, window, or the full desktop, then copy, save as PNG, save to the last folder, reselect, or open more tools. The preview supports zoom and local **Windows AI / NPU OCR**, using a separately identified Quickfetch companion. Tap recognized words to toggle selection; copy selected words with **Ctrl+C**, or select all with **Ctrl+A**. The recognizer is reused within the preview and released after 30 idle seconds or when the preview closes. Ordinary end-user distribution requires a trusted signed identity package; loose registration is only a development path on machines with Developer Mode already enabled.
+
+截图预览还可点击 **识别二维码**。识别在本机完成，可复制结果；HTTP/HTTPS 链接可手动点击 **打开链接**，由默认浏览器打开。

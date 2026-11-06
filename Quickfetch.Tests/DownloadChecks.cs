@@ -61,7 +61,7 @@ internal static class DownloadChecks
                 check(resumed.Status == DownloadStatus.Completed && SHA256.HashData(File.ReadAllBytes(resumed.CompletedPath)).SequenceEqual(SHA256.HashData(server.Data)), "Paused segment downloads must resume with full data integrity.");
                 var bad = manager.Enqueue(probe with { Url = new Uri(server.Url("bad")) }, new(server.Url("bad"), "bad.bin"));
                 var rejected = await Wait(manager, bad, j => j.Status is DownloadStatus.Completed or DownloadStatus.Failed);
-                check(rejected.Status == DownloadStatus.Failed && rejected.CompletedPath.Length == 0, "Invalid Content-Range responses must fail rather than corrupt files.");
+                check(rejected.Status == DownloadStatus.Completed && !rejected.Ranged && rejected.WorkerCount == 1 && SHA256.HashData(File.ReadAllBytes(rejected.CompletedPath)).SequenceEqual(SHA256.HashData(server.Data)), "Invalid ranges must safely restart from scratch with matching file bytes.");
                 check(manager.RemoveCompleted(id) && !manager.RemoveCompleted(id) && manager.Snapshot().All(j => j.Id != id) && manager.Snapshot().Any(j => j.Id == fallbackId) && File.Exists(done.CompletedPath), "Removing one completed record must preserve its file and other records.");
                 check(!File.ReadAllText(Path.Combine(folder, "queue.json")).Contains(id.ToString()), "Single-record removal must be persisted immediately.");
                 manager.Cancel(bad); manager.ClearHistory();

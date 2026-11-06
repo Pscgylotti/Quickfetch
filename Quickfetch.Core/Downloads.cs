@@ -311,6 +311,18 @@ public sealed partial class DownloadManager : IDisposable
             else await Single(client, file, job, cancellation);
             cancellation.ThrowIfCancellationRequested();
         }
+        catch (InvalidDataException) when (job.Ranged && !cancellation.IsCancellationRequested)
+        {
+            // All workers have completed before discarding their partial bytes.
+            lock (_gate)
+            {
+                job.Ranged = false; job.Ranges.Clear(); job.SingleBytes = 0; job.Pointers = new long[Workers];
+                job.WorkerCount = 1; job.Size = null;
+                job.Phase = TextLocalization.T("服务器分段响应不兼容，已自动从头单路下载");
+                RandomAccess.SetLength(file, 0); Save();
+            }
+            await Single(client, file, job, cancellation);
+        }
         finally
         {
             lock (_gate) { RandomAccess.FlushToDisk(file); _activeFile = null; Save(); }
@@ -350,6 +362,8 @@ public sealed partial class DownloadManager : IDisposable
                     else if (job.Modified is DateTimeOffset modified) request.Headers.IfRange = new RangeConditionHeaderValue(modified);
                     using var headersTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation); headersTimeout.CancelAfter(TimeSpan.FromSeconds(30));
                     using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headersTimeout.Token);
+                    if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+                        throw new InvalidDataException("Range not satisfiable");
                     response.EnsureSuccessStatusCode();
                     var contentRange = response.Content.Headers.ContentRange;
                     if (response.StatusCode != HttpStatusCode.PartialContent || contentRange?.From != start || contentRange.To != end || contentRange.Length != job.Size || response.Content.Headers.ContentEncoding.Count > 0 || job.ETag is not null && response.Headers.ETag is not null && response.Headers.ETag.ToString() != job.ETag)
@@ -380,6 +394,9 @@ public sealed partial class DownloadManager : IDisposable
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation); timeout.CancelAfter(TimeSpan.FromSeconds(30));
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token); response.EnsureSuccessStatusCode();
         if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentEncoding.Count > 0) throw new IOException(TextLocalization.T("服务器返回了不支持的响应。"));
+        if (response.Content.Headers.ContentType?.MediaType is "text/html" or "application/xhtml+xml")
+            throw new IOException(TextLocalization.T("链接已失效或返回登录网页。"));
+        lock (_gate) { job.Size ??= response.Content.Headers.ContentLength; }
         using var stream = await response.Content.ReadAsStreamAsync(cancellation); var buffer = new byte[BufferSize];
         while (true)
         {

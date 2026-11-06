@@ -1,4 +1,4 @@
-param([string]$Version = '0.0.6', [string]$RuntimeVersion = '10.0.13')
+param([string]$Version = '0.0.7', [string]$RuntimeVersion = '10.0.13')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $outputRoot = Join-Path $projectRoot 'artifacts'

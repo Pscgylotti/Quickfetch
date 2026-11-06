@@ -107,6 +107,7 @@ public partial class MainWindow : Window
     public void ShowLauncher()
     {
         if (_disposed || _draggingFile || _captureBusy) return;
+        var reopening = !IsVisible;
         var previousForeground = GetForegroundWindow();
         _restoringLauncherFocus = true;
         if (_tray is not null && !_loading && _settings.IncludeRegisteredApps && _registeredApps.NeedsRefresh)
@@ -123,8 +124,19 @@ public partial class MainWindow : Window
         }
         WindowState = WindowState.Normal;
         StartLauncherActivation(previousForeground);
-        Query.Text = "";
-        UpdateResults();
+        if (_fileMode && !_urlMode && !_showingUrlHistory)
+        {
+            if (_resumeFileSearch) QueueFileSearch(resetLimit: false);
+            else if (reopening)
+            {
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+                {
+                    if (IsVisible && _fileMode && !_urlMode) FindScrollViewer(Results)?.ScrollToVerticalOffset(_fileViewportOffset);
+                });
+                QueueFilePreview();
+            }
+        }
+        else { Query.Text = ""; UpdateResults(); }
         ScheduleBackdrop();
         Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { FocusSearch(); Query.SelectAll(); });
     }
@@ -339,10 +351,47 @@ public partial class MainWindow : Window
         if (IsCharacterMapShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; OpenCharacterMap(); return; }
         if (_pinPressed is not null && e.Key == Key.Escape) { CancelPinnedDrag(); e.Handled = true; return; }
         if (e.Key == Key.Tab && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift) { SwitchMode(); e.Handled = true; return; }
+        if (_fileMode && !_urlMode && !_showingUrlHistory && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.C
+            && Results.SelectedItem is FileItem
+            && (Keyboard.FocusedElement is not TextBox pathEditor || ReferenceEquals(pathEditor, Query)))
+        {
+            e.Handled = true;
+            if (!e.IsRepeat)
+            {
+                try
+                {
+                    Clipboard.SetText(string.Join(Environment.NewLine, Results.SelectedItems.OfType<FileItem>().Select(item => "\"" + item.Path + "\"")));
+                    SetMessage(Loc.T("文件路径已复制。"));
+                }
+                catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法完成文件操作：") + ex.Message); }
+            }
+            return;
+        }
+        if (_fileMode && !_urlMode && !_showingUrlHistory && Keyboard.Modifiers == ModifierKeys.Control && e.Key is Key.C or Key.X
+            && Results.SelectedItem is FileItem file
+            && (Keyboard.FocusedElement is not TextBox editor || ReferenceEquals(editor, Query)))
+        {
+            e.Handled = true;
+            if (!e.IsRepeat)
+            {
+                try
+                {
+                    CopySelectedFiles(e.Key == Key.X);
+                    SetMessage(Loc.T(e.Key == Key.X ? "文件已剪切，可在资源管理器中粘贴。" : "文件已复制，可在资源管理器中粘贴。"));
+                }
+                catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法完成文件操作：") + ex.Message); }
+            }
+            return;
+        }
         if (_touchInput && e.Key != Key.Escape) { SetTouchKeyboard(false, physicalKeyboard: true); FocusSearch(); }
         if (e.Key == Key.Escape) { Hide(); e.Handled = true; }
         else if (e.Key is Key.Down or Key.Up)
         {
+            if (_fileMode && !_urlMode && !_showingUrlHistory && Keyboard.Modifiers == ModifierKeys.Shift)
+            {
+                ExtendFileSelection(e.Key == Key.Down ? 1 : -1); e.Handled = true; return;
+            }
+            _fileRangeAnchor = -1;
             if (Results.Items.Count > 0)
             {
                 var next = Results.SelectedIndex + (e.Key == Key.Down ? 1 : -1);
@@ -381,8 +430,8 @@ public partial class MainWindow : Window
         if (revealKeyboard) Reveal(QuickKeyboard, 16);
         KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? Loc.T("展开或收起触屏键盘") : Loc.T("打开 Windows 系统触摸键盘");
         var center = Left + Width / 2;
-        FilePreviewPanel.Visibility = _fileMode && !_urlMode && !_showingUrlHistory && _settings.EnableFilePreview ? Visibility.Visible : Visibility.Collapsed;
-        var targetWidth = Math.Min(_fileMode ? 784 + (_settings.EnableFilePreview && !_urlMode && !_showingUrlHistory ? 316 : 0) : 660, SystemParameters.WorkArea.Width - 24);
+        FilePreviewPanel.Visibility = _fileMode && !_urlMode && !_showingUrlHistory && (_settings.EnableFilePreview || Results.SelectedItems.Count > 1) ? Visibility.Visible : Visibility.Collapsed;
+        var targetWidth = Math.Min(_fileMode ? 784 + ((_settings.EnableFilePreview || Results.SelectedItems.Count > 1) && !_urlMode && !_showingUrlHistory ? 316 : 0) : 660, SystemParameters.WorkArea.Width - 24);
         _modeTargetWidth = targetWidth;
         if (!(animateModeBounds && IsVisible && SystemParameters.ClientAreaAnimation))
         {
