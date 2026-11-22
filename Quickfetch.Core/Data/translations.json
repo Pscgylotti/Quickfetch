@@ -1,4 +1,5 @@
 {
+  "快捷开关": "Quick settings",
   "文件路径已复制。": "File paths copied.",
   "已选中 {0} 项": "{0} items selected",
   "总大小：": "Total size: ",
@@ -16,6 +17,9 @@
   "二维码识别失败：": "QR recognition failed: ",
   "取消固定": "Unpin",
   "保存固定应用失败：": "Unable to save pinned apps: ",
+  "预览：Windows 缩略图": "Preview: Windows thumbnail",
+  "工作表": "Worksheets",
+  "压缩包目录": "Archive contents",
   "预览：Windows 缓存缩略图": "Preview: Windows cached thumbnail",
   "预览：Windows 媒体缩略图 / 专辑封面": "Preview: Windows media thumbnail / album cover",
   "三指左滑 · 下一个窗口": "Three fingers left · Next window",

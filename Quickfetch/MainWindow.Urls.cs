@@ -15,6 +15,7 @@ public partial class MainWindow
     internal static bool IsUrlShortcut(Key key, ModifierKeys modifiers) => key == Key.W && modifiers == ModifierKeys.Alt;
     internal void EnterUrlMode()
     {
+        CloseExtensions();
         ResetOpenAnimation(); _fileVersion++; _fileCancellation?.Cancel(); _fileTimer.Stop();
         Results.SelectionMode = System.Windows.Controls.SelectionMode.Single;
         _urlMode = _fileMode = true; _forceFileSearch = false; FileSortHeader.Visibility = Visibility.Collapsed;
@@ -26,6 +27,7 @@ public partial class MainWindow
     }
     private void ShowUrlSuggestions()
     {
+        CheckedFilePaths = CheckedFilePaths.Clear();
         Results.SelectionMode = System.Windows.Controls.SelectionMode.Single;
         _showingUrlHistory = true; _urlSelectionMoved = false;
         ResultHint.Text = Loc.T("Tab 文件    Enter 打开 / 下载    Shift + Enter 作为网页打开并记住");

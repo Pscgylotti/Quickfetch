@@ -7,7 +7,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -104,7 +106,32 @@ internal sealed class DownloadsWindow : Window
         var root = new Grid { Margin = new Thickness(18) };
         foreach (var height in new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto }) root.RowDefinitions.Add(new RowDefinition { Height = height });
         var border = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), Child = root }; border.SetResourceReference(Border.BackgroundProperty, "Surface"); border.SetResourceReference(Border.BorderBrushProperty, "Line"); Content = border;
-        var header = new DockPanel(); var close = Button(Loc.T("关闭"), (_, _) => Close()); DockPanel.SetDock(close, Dock.Right); header.Children.Add(close);
+        var header = new DockPanel();
+        var close = new Button { Style = (Style)FindResource("WindowDismissAction"), Focusable = true, ToolTip = Loc.T("关闭 · Esc") };
+        AutomationProperties.SetName(close, Loc.T("关闭"));
+        AutomationProperties.SetAcceleratorKey(close, "Esc");
+        close.Click += (_, _) => Close();
+        Stylus.SetIsPressAndHoldEnabled(close, false);
+        close.PreviewTouchDown += (_, e) =>
+        {
+            e.Handled = true;
+            if (!close.AreAnyTouchesCaptured) e.TouchDevice.Capture(close);
+        };
+        close.PreviewTouchUp += (_, e) =>
+        {
+            e.Handled = true;
+            if (e.TouchDevice.Captured != close) return;
+            var releasedInside = new Rect(close.RenderSize).Contains(e.GetTouchPoint(close).Position);
+            e.TouchDevice.Capture(null);
+            if (releasedInside) Close();
+        };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape || Keyboard.Modifiers != ModifierKeys.None) return;
+            e.Handled = true;
+            Close();
+        };
+        DockPanel.SetDock(close, Dock.Right); header.Children.Add(close);
         header.Children.Add(new TextBlock { Text = Loc.T("下载队列与历史"), FontSize = 20, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center }); root.Children.Add(header);
         var controls = new StackPanel { Margin = new Thickness(0, 10, 0, 10) }; Grid.SetRow(controls, 1); root.Children.Add(controls);
         var addRow = new DockPanel(); var add = Button(Loc.T("加入队列"), async (_, _) =>

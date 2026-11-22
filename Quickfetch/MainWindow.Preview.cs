@@ -67,15 +67,19 @@ public partial class MainWindow
             if (selected.Length > 1)
             {
                 PreviewTitle.Text = Loc.F($"已选中 {selected.Length} 项");
-                var total = selected.Where(item => item.File.Size.HasValue).Sum(item => (decimal)item.File.Size!.Value);
-                var unknown = selected.Count(item => !item.File.Size.HasValue);
-                PreviewDetails.Text = Loc.T("总大小：") + FileEntry.FormatSize((long)Math.Min(total, long.MaxValue))
-                    + (unknown > 0 ? Loc.F($"（{unknown} 项大小未知，未计入）") : "");
+                PreviewDetails.Text = Loc.T("总大小：") + SelectionSize(selected);
                 PreviewText.Text = string.Join(Environment.NewLine, selected.Select(item => item.Name));
                 return;
             }
         }
         if (_settings.EnableFilePreview && _fileMode && IsVisible && Results.SelectedItem is FileItem) _previewTimer.Start();
+    }
+    private static string SelectionSize(FileItem[] selected)
+    {
+        var total = selected.Where(item => item.File.Size.HasValue).Sum(item => (decimal)item.File.Size!.Value);
+        var unknown = selected.Count(item => !item.File.Size.HasValue);
+        return FileEntry.FormatSize((long)Math.Min(total, long.MaxValue))
+            + (unknown > 0 ? Loc.F($"（{unknown} 项大小未知，未计入）") : "");
     }
     private void FilePreview_Click(object sender, RoutedEventArgs e)
     {

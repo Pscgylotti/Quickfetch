@@ -27,9 +27,12 @@ internal static class Program
         var app = new App { SuppressLauncherStartup = true };
         app.InitializeComponent();
         if (args.Contains("--pin-drag")) { PinnedDragChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin drag and gesture notice checks"); app.Shutdown(); return; }
+        if (args.Contains("--preview")) { var main = new MainWindow(new Settings(), _ => { }); try { RegisteredPreviewChecks.Run(main, Check, args.Contains("--integration")); } finally { main.DisposeLauncher(); main.Close(); } Console.WriteLine($"PASS: {passed} file preview and touch checks"); app.Shutdown(); return; }
+        if (args.Contains("--file-ui")) { var main = new MainWindow(new Settings(), _ => { }); try { FileUiChecks.Run(main, Check, false); } finally { main.DisposeLauncher(); main.Close(); } Console.WriteLine($"PASS: {passed} file UI checks"); app.Shutdown(); return; }
         if (args.Contains("--file-session")) { FileSessionChecks.Run(Check); Console.WriteLine($"PASS: {passed} file workflow checks"); app.Shutdown(); return; }
         if (args.Contains("--pins")) { PinnedChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin and dropdown checks"); app.Shutdown(); return; }
-        if (args.Contains("--launcher-input")) { LauncherInputChecks.Run(Check, args.Contains("--start-menu")); Console.WriteLine($"PASS: {passed} launcher input checks"); app.Shutdown(); return; }
+        if (args.Contains("--quick-toggles")) { QuickToggleChecks.Run(Check); Console.WriteLine($"PASS: {passed} quick settings and extension wheel checks"); app.Shutdown(); return; }
+        if (args.Contains("--launcher-input")) { LauncherInputChecks.Run(Check, args.Contains("--start-menu"), args.Contains("--native-touch")); Console.WriteLine($"PASS: {passed} launcher input checks"); app.Shutdown(); return; }
         if (args.Contains("--capture")) { CaptureChecks.Run(Check, args.Contains("--integration")); Console.WriteLine($"PASS: {passed} screenshot checks"); app.Shutdown(); return; }
         if (args.Contains("--release005")) { Release005Checks.Run(Check); Console.WriteLine($"PASS: {passed} release UI checks"); app.Shutdown(); return; }
         if (args.Contains("--download-records")) { DownloadUiChecks.RunRecordRemoval(Check); Console.WriteLine($"PASS: {passed} download record checks"); app.Shutdown(); return; }
@@ -185,7 +188,7 @@ internal static class Program
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(((FrameworkElement)window.FindName("FileSortHeader")).Visibility == Visibility.Collapsed, "Switching back must restore app mode.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Check(query.Text == "", "Returning through app mode must clear the previous file query.");
+        Check(query.Text == "txt", "Returning through app mode must preserve the legal ASCII portion of the previous file query.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         // Show this test window briefly to verify unfocused text geometry and custom caret.
         var choosing = typeof(MainWindow).GetField("_choosingFolder", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;

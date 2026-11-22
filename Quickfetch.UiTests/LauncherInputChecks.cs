@@ -12,7 +12,7 @@ using Quickfetch.Core;
 
 internal static class LauncherInputChecks
 {
-    internal static void Run(Action<bool, string> check, bool startMenu)
+    internal static void Run(Action<bool, string> check, bool startMenu, bool nativeTouch = false)
     {
         var main = new MainWindow(new Settings { UseBuiltInKeyboard = true }, _ => { });
         try
@@ -34,13 +34,14 @@ internal static class LauncherInputChecks
                 main.SetKeyboardPreference(true, showKeyboard: true);
                 var items = Enumerable.Range(0, 3).Select(i => new FileItem(new FileEntry("Missing test item " + i, "C:\\Quickfetch-test-missing", "C:\\Quickfetch-test-missing\\item-" + i, false, 0, DateTimeOffset.Now))).ToArray();
                 rows.ItemsSource = items; rows.SelectedIndex = 0; ((UIElement)main.FindName("EmptyMessage")).Visibility = Visibility.Collapsed;
+                ((UIElement)main.FindName("InstallEverythingButton")).Visibility = Visibility.Collapsed;
                 main.UpdateLayout();
                 var row = (ListBoxItem)rows.ItemContainerGenerator.ContainerFromIndex(1);
                 check(row is not null, "Test rows must be realized in app and file layouts.");
-                var point = row!.TranslatePoint(new Point(25, row.ActualHeight / 2), main);
+                var point = row!.TranslatePoint(new Point(84, row.ActualHeight / 2), main);
                 var touch = new TestTouch(main, fileMode ? 502 : 501);
                 touch.Down(point); touch.Up(point);
-                check(ReferenceEquals(rows.SelectedItem, items[1]), "One finger tap must select exactly the tapped result in both modes.");
+                check(ReferenceEquals(rows.SelectedItem, items[1]), $"One finger tap must select the row body (file mode: {fileMode}, selected: {rows.SelectedIndex}).");
                 check(!rows.TouchesCaptured.Any() && Mouse.Captured is null, "Completing a row tap must release both touch and promoted mouse capture before another control is pressed.");
                 check(ReferenceEquals(Keyboard.FocusedElement, surface) && !query.IsKeyboardFocused, "Built-in touch input must restore non-edit focus after selecting a result.");
                 // Missing paths intentionally exercise the real launch attempt without opening an external application.
@@ -52,17 +53,63 @@ internal static class LauncherInputChecks
                 check(Mouse.Captured is null && rows.SelectedIndex == 2, "Selecting a touch result must also clear an existing legacy ListBox mouse capture.");
             }
             var extensions = (Button)main.FindName("ExtensionsButton");
-            extensions.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(30);
-            check(extensions.ContextMenu.IsOpen, "The extension button must open its panel on the first click.");
+            var panel = (Border)main.FindName("ExtensionsPanel");
             var buttonPoint = extensions.TranslatePoint(new Point(extensions.ActualWidth / 2, extensions.ActualHeight / 2), main);
-            var dismissTouch = new TestTouch(main, 503); dismissTouch.Down(buttonPoint); dismissTouch.Up(buttonPoint); Pump(30);
-            check(!extensions.ContextMenu.IsOpen && main.IsVisible, "Tapping the extension button with its popup open must dismiss it without reopening or hiding the launcher.");
-            extensions.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(30);
-            check(extensions.ContextMenu.IsOpen, "A new intentional click must reopen extensions immediately after touch dismissal.");
-            extensions.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            check(!extensions.ContextMenu.IsOpen, "Repeated button clicks must toggle the extension panel closed.");
+            if (nativeTouch)
+            {
+                if (!InitializeTouchInjection(1, 3)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "Touch initialization failed.");
+                var changes = 0;
+                panel.IsVisibleChanged += CountPanelChange;
+                void CountPanelChange(object sender, DependencyPropertyChangedEventArgs e) => changes++;
+                try
+                {
+                    for (int i = 1; i <= 4; i++)
+                    {
+                        var screen = main.PointToScreen(buttonPoint);
+                        var point = new NativePoint { X = (int)screen.X, Y = (int)screen.Y };
+                        if (WindowFromPoint(point) != own || LauncherActivation.GetForegroundWindow() != own)
+                            throw new InvalidOperationException("The test window must own the touch target.");
+                        var contact = new NativeTouch
+                        {
+                            Pointer = new() { Type = 2, Id = 0, Pixel = point, Flags = 0x10006 },
+                            Mask = 7, Orientation = 90, Pressure = 512,
+                            Contact = new() { Left = point.X - 2, Top = point.Y - 2, Right = point.X + 2, Bottom = point.Y + 2 }
+                        };
+                        if (!InjectTouchInput(1, ref contact)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), $"Touch frame {contact.Pointer.Flags:X} failed at {point.X},{point.Y} ({Marshal.SizeOf<NativeTouch>()} bytes).");
+                        try
+                        {
+                            Pump(30);
+                            contact.Pointer.Flags = 0x20006;
+                            if (!InjectTouchInput(1, ref contact)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "Touch update failed.");
+                            Pump(20);
+                        }
+                        finally
+                        {
+                            contact.Pointer.Flags = 0x40000;
+                            if (!InjectTouchInput(1, ref contact)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), $"Touch frame {contact.Pointer.Flags:X} failed at {point.X},{point.Y} ({Marshal.SizeOf<NativeTouch>()} bytes).");
+                        }
+                        Pump(200);
+                        check(changes == i && panel.IsVisible == (i % 2 == 1),
+                            $"System touch {i} must produce exactly one visibility change (observed {changes}).");
+                    }
+                }
+                finally { panel.IsVisibleChanged -= CountPanelChange; }
+            }
+            var tap = new TestTouch(main, 503);
+            for (var i = 0; i < 4; i++)
+            {
+                bool previouslyOpen = panel.IsVisible;
+                tap.Down(buttonPoint); tap.Up(buttonPoint); Pump(15);
+                check(panel.IsVisible != previouslyOpen && main.IsVisible, "Each touch release must toggle the extensions menu exactly once.");
+            }
+            extensions.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(15);
+            var outside = query.TranslatePoint(new Point(6, 5), main);
+            tap.Down(outside); tap.Up(outside); Pump(15);
+            check(!panel.IsVisible && main.IsVisible, "Tapping outside the panel should dismiss it.");
+            extensions.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(15);
             main.Hide(); main.ShowLauncher(); Pump(160);
             check(main.IsVisible && LauncherActivation.GetForegroundWindow() == own, "The same native window must regain the foreground when reopened.");
+            check(!panel.IsVisible, "Reopening the launcher must start with the extensions panel closed.");
             if (startMenu)
             {
                 main.Hide();
@@ -91,7 +138,7 @@ internal static class LauncherInputChecks
         var frame = new DispatcherFrame(); var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(milliseconds) };
         timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; }; timer.Start(); Dispatcher.PushFrame(frame);
     }
-    private sealed class TestTouch(Window root, int id) : TouchDevice(id)
+    internal sealed class TestTouch(Window root, int id) : TouchDevice(id)
     {
         private Point _position;
         private TouchAction _action;
@@ -102,8 +149,32 @@ internal static class LauncherInputChecks
         }
         public override TouchPointCollection GetIntermediateTouchPoints(IInputElement? relativeTo) => new() { GetTouchPoint(relativeTo) };
         internal void Down(Point point) { _position = point; _action = TouchAction.Down; SetActiveSource(PresentationSource.FromVisual(root)); Activate(); ReportDown(); }
+        internal void Move(Point point) { _position = point; _action = TouchAction.Move; ReportMove(); }
         internal void Up(Point point) { _position = point; _action = TouchAction.Up; ReportUp(); Deactivate(); }
     }
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeRect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct PointerInfo
+    {
+        public uint Type, Id, Frame, Flags;
+        public IntPtr Source, Target;
+        public NativePoint Pixel, Himetric, RawPixel, RawHimetric;
+        public uint Time, History;
+        public int Data;
+        public uint Keys;
+        public ulong PerformanceCount;
+        public uint ButtonChange;
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeTouch
+    {
+        public PointerInfo Pointer;
+        public uint Flags, Mask;
+        public NativeRect Contact, RawContact;
+        public uint Orientation, Pressure;
+    }
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool InitializeTouchInjection(uint contacts, uint feedback);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool InjectTouchInput(uint count, ref NativeTouch contact);
+    [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(NativePoint point);
     [StructLayout(LayoutKind.Sequential)] private struct Input { public uint Type; public InputData Data; }
     [StructLayout(LayoutKind.Explicit)] private struct InputData { [FieldOffset(0)] public KeyboardInput Keyboard; [FieldOffset(0)] public MouseInput Mouse; }
     [StructLayout(LayoutKind.Sequential)] private struct KeyboardInput { public ushort Key, Scan; public uint Flags, Time; public UIntPtr Extra; }

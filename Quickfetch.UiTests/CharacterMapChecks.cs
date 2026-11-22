@@ -17,7 +17,7 @@ internal static class CharacterMapChecks
     internal static void Run(MainWindow main, Action<bool, string> check)
     {
         ((App)Application.Current).SetTheme();
-        check(main.FindName("ExtensionsButton") is Button extensions && extensions.ContextMenu.Items[0] is MenuItem { Header: "字符映射" }, "The extension list must start with Character Map.");
+        check(main.ExtensionEntries.Children.OfType<Button>().First() == main.CharacterMapMenuItem && System.Windows.Automation.AutomationProperties.GetName(main.CharacterMapMenuItem) == "字符映射", "The extension list must start with Character Map.");
         check(MainWindow.IsCharacterMapShortcut(Key.C, ModifierKeys.Alt) && !MainWindow.IsCharacterMapShortcut(Key.C, ModifierKeys.Control) && !MainWindow.IsCharacterMapShortcut(Key.C, ModifierKeys.None), "Alt+C must open Character Map without stealing typing or Ctrl+C.");
         string copied = "";
         var previousContext = SynchronizationContext.Current;
@@ -29,6 +29,7 @@ internal static class CharacterMapChecks
             var styles = (ListBox)window.FindName("StyleResults");
             VirtualizingPanel.SetIsVirtualizing(styles, false); window.UpdateLayout();
             check(styles.Items.Count == 23 && ((ItemsControl)window.FindName("Characters")).ItemsSource is not null, "Opening the map must asynchronously load both conversion previews and the local character search.");
+            CheckWheel(styles, check);
             var searchRect = ((TextBox)window.FindName("SearchInput")).GetRectFromCharacterIndex(0);
             check(searchRect.Height >= 16 && searchRect.Top >= 0 && searchRect.Bottom <= ((TextBox)window.FindName("SearchInput")).ActualHeight, "The search field must display the full text line without clipping its caret or glyphs.");
             Save(window, "artifacts/character-map-preview.png");
@@ -52,6 +53,9 @@ internal static class CharacterMapChecks
             check(search.Text == "积分", "Clearing composed text must preserve search state.");
             search.Text = "笑脸"; ((ComboBox)window.FindName("Category")).SelectedItem = "Emoji"; Pump(window.RefreshResults()); window.UpdateLayout();
             check(window.CharacterResults.Any() && window.CharacterResults.All(e => e.Group == "Emoji"), "Category filters must update Chinese emoji results.");
+            search.Clear(); Pump(window.RefreshResults()); window.UpdateLayout();
+            CheckWheel((ListBox)characters, check);
+            search.Text = "笑脸"; Pump(window.RefreshResults()); window.UpdateLayout();
             Save(window, "artifacts/character-map-emoji-preview.png");
             window.Width = 680; window.Height = 580; window.UpdateLayout();
             check(composer.ActualWidth > 400 && characters.ActualWidth > 200 && ((Button)window.FindName("CopyButton")).ActualHeight >= 42, "The compact layout must keep both results and touch-sized composer actions usable.");
@@ -99,11 +103,25 @@ internal static class CharacterMapChecks
         }
         finally { if (!wasVisible) main.Hide(); }
     }
+    private static void CheckWheel(ListBox list, Action<bool, string> check)
+    {
+        var scroll = Descendants<ScrollViewer>(list).First();
+        var initial = scroll.VerticalOffset;
+        foreach (var delta in new[] { -30, -60, -30 })
+        {
+            var e = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta) { RoutedEvent = Mouse.PreviewMouseWheelEvent };
+            list.RaiseEvent(e);
+            check(e.Handled, "Character results must consume fine wheel deltas.");
+        }
+        Pump(Task.Delay(60)); list.UpdateLayout();
+        check(Math.Abs(scroll.VerticalOffset - initial - 18) < 1, "Three fine wheel deltas must scroll 18 DIP in " + list.Name);
+        scroll.ScrollToHome(); list.UpdateLayout();
+    }
     private static void OpenFromMenu(MainWindow main, Action<CharacterMapWindow> inspect)
     {
         var button = (Button)main.FindName("ExtensionsButton");
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        if (!button.ContextMenu.IsOpen) throw new Exception("The extension button did not expand its menu.");
+        if (!main.ExtensionsPanel.IsVisible) throw new Exception("The extension button did not expand its menu.");
         Exception? failure = null; var opened = false;
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         timer.Tick += (_, _) =>
@@ -114,7 +132,7 @@ internal static class CharacterMapChecks
             try { inspect(child); } catch (Exception ex) { failure = ex; } finally { child.Close(); }
         };
         timer.Start();
-        try { ((MenuItem)button.ContextMenu.Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); }
+        try { main.CharacterMapMenuItem.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
         finally { timer.Stop(); }
         if (failure is not null) throw failure;
         if (!opened) throw new Exception("The first extension item did not open Character Map.");

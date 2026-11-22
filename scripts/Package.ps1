@@ -1,4 +1,4 @@
-param([string]$Version = '0.0.7', [string]$RuntimeVersion = '10.0.13')
+param([string]$Version = '0.0.8', [string]$RuntimeVersion = '10.0.13')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $outputRoot = Join-Path $projectRoot 'artifacts'
@@ -15,6 +15,7 @@ foreach ($flavor in @('framework-dependent', 'portable')) {
     $archive = Join-Path $outputRoot "Quickfetch-$Version-win-x64-$flavor.zip"
     $packageFiles = @((Join-Path $publishFolder 'Quickfetch.exe'), (Join-Path $publishFolder 'README.md'), (Join-Path $publishFolder 'LICENSE'), (Join-Path $publishFolder 'CONTRIBUTORS.md'), (Join-Path $publishFolder 'THIRD-PARTY-NOTICES.md'), (Join-Path $publishFolder 'docs'))
     $packageFiles += Join-Path $publishFolder 'windows-ai-ocr'
+    $packageFiles += Join-Path $publishFolder 'plugins'
     Compress-Archive -LiteralPath $packageFiles -DestinationPath $archive -Force
 }
 & (Join-Path $PSScriptRoot 'Package-Extensions.ps1') -Version $Version

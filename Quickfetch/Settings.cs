@@ -8,6 +8,7 @@ namespace Quickfetch;
 public sealed class Settings
 {
     public string UiLanguage { get; set; } = "zh-CN";
+    public System.Collections.Generic.Dictionary<string,string> TogglePluginPaths { get; set; } = new();
     public string CaptureFolder { get; set; } = "";
     public string Folder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
     public bool IncludeSubfolders { get; set; } = true;

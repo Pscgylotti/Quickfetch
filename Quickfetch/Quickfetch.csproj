@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>disable</ImplicitUsings><Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/Quickfetch.ico</ApplicationIcon>
     <StartupObject>Quickfetch.Program</StartupObject>
-    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.7</Version>
+    <AssemblyName>Quickfetch</AssemblyName><Version>0.0.8</Version>
     <PublishSingleFile>true</PublishSingleFile><SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier><DebugType>none</DebugType>
   </PropertyGroup>
@@ -15,6 +15,9 @@
     <Resource Include="Assets/Quickfetch.ico" />
     <Content Include="../artifacts/windows-ai-ocr/runtime/**/*" Link="windows-ai-ocr/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <None Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="../plugins/toggles/**/*" Link="plugins/toggles/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="System.Management" Version="10.0.0" />
     <PackageReference Include="ZXing.Net" Version="0.16.11" />
     <ProjectReference Include="../Quickfetch.Core/Quickfetch.Core.csproj" />
     <RuntimeHostConfigurationOption Include="Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation" Value="true" />

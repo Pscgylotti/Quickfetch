@@ -4,6 +4,12 @@
 
 The optional screenshot recognizer uses Microsoft.WindowsAppSDK.AI 1.8.79 and Microsoft.WindowsAppSDK.Foundation 1.8.260505001, with the .NET 10 runtime and their transitive components. The SDKs and runtime retain their own license terms. Published companion files include the upstream SDK licenses and .NET license/third-party notices in `windows-ai-ocr/Licenses`; these are copied from the pinned packages by `scripts/Build-WindowsAiOcr.ps1`. Windows system AI model assets remain managed by Windows and are not bundled with Quickfetch.
 
+## NAudio and .NET system controls
+
+NAudio.Wasapi and NAudio.Core 2.2.1 are distributed under the MIT license reproduced below. Copyright © Mark Heath 2023. [NAudio source](https://github.com/naudio/NAudio).
+
+System.Management and System.CodeDom 10.0.0 are distributed under the same MIT license. Copyright © Microsoft Corporation. All rights reserved. [.NET runtime source](https://github.com/dotnet/runtime).
+
 ## TinyPinyin.Net 1.0.2
 
 Source: https://github.com/hueifeng/TinyPinyin.Net

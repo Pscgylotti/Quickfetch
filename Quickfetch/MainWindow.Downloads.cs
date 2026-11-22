@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using Quickfetch.Core;
 
 namespace Quickfetch;
@@ -25,9 +26,12 @@ public partial class MainWindow
         _downloadBridgeCancellation = new CancellationTokenSource();
         _downloadBridgeTask = DownloadBridge.Serve(_downloads, _downloadBridgeCancellation.Token);
     }
-    private void Downloads_Click(object sender, RoutedEventArgs e)
+    internal static bool IsDownloadsShortcut(Key key, ModifierKeys modifiers) => key == Key.D && modifiers == ModifierKeys.Alt;
+    private void Downloads_Click(object sender, RoutedEventArgs e) => OpenDownloads();
+    private void OpenDownloads()
     {
         if (_choosingFolder) return;
+        CloseExtensions();
         try { InitializeDownloads(); _choosingFolder = true; new DownloadsWindow(_downloads!, _settings, _saveSettings) { Owner = this }.ShowDialog(); }
         catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法打开下载面板：") + ex.Message); }
         finally { _choosingFolder = false; FocusSearch(); }

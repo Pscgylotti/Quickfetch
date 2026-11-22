@@ -35,7 +35,7 @@ public partial class MainWindow
         _fileSort = _settings.FileSort is >= 1 and <= 6 or 13 or 14 ? _settings.FileSort : 1;
         UpdateSortLabels();
         _appTemplate = Results.ItemTemplate;
-        Results.PreviewMouseWheel += Results_MouseWheel;
+        PixelWheel.Attach(Results, 30);
         _fileTimer.Tick += async (_, _) => { _fileTimer.Stop(); await SearchFiles(); };
         Query.SelectionChanged += (_, _) => ScheduleCaret();
         Query.SizeChanged += (_, _) => ScheduleCaret();
@@ -46,6 +46,7 @@ public partial class MainWindow
             ConfigureOutsideClicks();
             if (!IsVisible)
             {
+                CloseExtensions();
                 CancelPinnedDrag();
                 _activationRetry.Stop(); _restoringLauncherFocus = false;
                 Results.ReleaseAllTouchCaptures(); ReleaseResultMouseCapture();
@@ -54,7 +55,7 @@ public partial class MainWindow
                 HideSystemKeyboard();
                 var keepFiles = _fileMode && !_urlMode && !_showingUrlHistory;
                 _resumeFileSearch = keepFiles && _fileSearchPending;
-                if (keepFiles) _fileViewportOffset = FindScrollViewer(Results)?.VerticalOffset ?? 0;
+                if (keepFiles) _fileViewportOffset = PixelWheel.FindScrollViewer(Results)?.VerticalOffset ?? 0;
                 _caretBlink.Stop(); _fileTimer.Stop(); _fileCancellation?.Cancel(); _fileVersion++;
                 if (!keepFiles) { Results.ItemsSource = Array.Empty<ILauncherItem>(); _fileLimit = 500; }
             }
@@ -66,13 +67,16 @@ public partial class MainWindow
     private void Mode_Click(object sender, RoutedEventArgs e) => SwitchMode();
     private void SwitchMode()
     {
+        CloseExtensions();
         CancelPinnedDrag();
+        CheckedFilePaths = CheckedFilePaths.Clear();
         var returningToFiles = _urlMode || _showingUrlHistory;
         _urlMode = false; _showingUrlHistory = false; QuickKeyboard.SetUrlMode(false);
         ResetOpenAnimation();
         _fileHold.Stop(); _fileTouches.Reset(); _fileTouchItem = null;
-        var transferredQuery = returningToFiles || !_fileMode ? Query.Text : "";
+        var transferredQuery = Query.Text;
         _fileMode = returningToFiles || !_fileMode;
+        if (!_fileMode) transferredQuery = System.Text.RegularExpressions.Regex.Replace(transferredQuery, "[^A-Za-z0-9]", "");
         Results.SelectionMode = _fileMode ? SelectionMode.Extended : SelectionMode.Single;
         _forceFileSearch = returningToFiles;
         _fileVersion++;
@@ -94,6 +98,11 @@ public partial class MainWindow
     }
     private void QueueFileSearch(bool resetLimit = true)
     {
+        if (_fileCheckQuery != Query.Text)
+        {
+            CheckedFilePaths = CheckedFilePaths.Clear();
+            _fileCheckQuery = Query.Text;
+        }
         _fileSearchPending = false; _resumeFileSearch = false; _fileRangeAnchor = -1;
         _fileVersion++;
         _fileCancellation?.Cancel(); _fileTimer.Stop();
@@ -133,6 +142,11 @@ public partial class MainWindow
             var items = page.Entries.Select(file => new FileItem(file)).ToArray();
             _fileSort = page.Sort;
             Results.ItemsSource = items; Results.SelectedIndex = items.Length > 0 ? 0 : -1;
+            if (!CheckedFilePaths.IsEmpty)
+            {
+                CheckedFilePaths = CheckedFilePaths.Intersect(items.Select(item => item.Path));
+                UpdateCheckedSummary();
+            }
             if (items.Length > 0) Results.ScrollIntoView(items[0]);
             EmptyMessage.Text = Loc.T("没有找到匹配的文件");
             EmptyMessage.Visibility = items.Length == 0 ? Visibility.Visible : Visibility.Collapsed;

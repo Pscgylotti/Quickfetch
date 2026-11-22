@@ -27,6 +27,8 @@ public partial class CharacterMapWindow : Window
     internal CharacterMapWindow(string draft = "", string query = "", Action<string>? copy = null, bool useBuiltInKeyboard = true)
     {
         InitializeComponent();
+        PixelWheel.Attach(Characters, 18);
+        PixelWheel.Attach(StyleResults, 18);
         _copy = copy ?? Clipboard.SetText;
         _useBuiltInKeyboard = useBuiltInKeyboard; _keyboardTarget = SearchInput;
         foreach (var input in new[] { SearchInput, Composer }) { input.IsInactiveSelectionHighlightEnabled = true; input.SelectionChanged += (_, _) => UpdateInputCaret(); input.SizeChanged += (_, _) => UpdateInputCaret(); }

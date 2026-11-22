@@ -46,9 +46,9 @@ internal static class FileUiChecks
         query.Text = "quick";
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         check(query.Text == "quick" && Math.Abs(window.Width - 784) < .1, "Application-to-file switching must preserve the query and use a 20% narrower file window.");
-        query.Text = "other";
+        query.Text = "oth er-中_42.exe";
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        check(query.Text == "" && Math.Abs(window.Width - 660) < .1, "Returning to apps must clear the query and restore the app width.");
+        check(query.Text == "other42exe" && Math.Abs(window.Width - 660) < .1, "Returning to apps must preserve only ASCII letters/digits from the file query and restore the app width.");
         mode.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         var rows = (ListBox)window.FindName("Results");
         rows.ItemsSource = new[] { new FileItem(new FileEntry("Design notes.pdf", "C:\\Example", "C:\\Example\\Design notes.pdf", false, 81920, DateTimeOffset.Now)), new FileItem(new FileEntry("Preview.png", "C:\\Example", "C:\\Example\\Preview.png", false, 245760, DateTimeOffset.Now)), new FileItem(Fixture("Folder", true)), new FileItem(Fixture("Unknown.unseen")) };

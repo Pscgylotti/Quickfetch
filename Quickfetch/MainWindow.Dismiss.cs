@@ -27,7 +27,7 @@ public partial class MainWindow
     }
     internal void DismissForOutsideClick(int x, int y)
     {
-        if (_disposed || !IsVisible || _choosingFolder || _draggingFile || _pinPressed is not null || _pinnedMenuOpen) return;
+        if (_disposed || !IsVisible || _choosingFolder || _wheelPressed || _draggingFile || _pinPressed is not null || _pinnedMenuOpen) return;
         if (!GetDismissBounds(new WindowInteropHelper(this).Handle, out var bounds)) return;
         if (x >= bounds.Left && x < bounds.Right && y >= bounds.Top && y < bounds.Bottom) return;
         var target = DismissWindowFromPoint(new DismissPoint { X = x, Y = y });

@@ -18,6 +18,18 @@ internal sealed record FilePreview(string Title, string Details, string Text, Im
 internal static class FilePreviewService
 {
     internal const int MaxTextBytes = 32768, MaxImageWidth = 640, MaxImageHeight = 480;
+    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".txt", ".md", ".mdx", ".rst", ".log", ".csv", ".tsv", ".json", ".jsonl", ".jsonc", ".xml", ".yaml", ".yml", ".toml",
+        ".ini", ".cfg", ".conf", ".config", ".env", ".properties", ".cs", ".cpp", ".c", ".cc", ".h", ".hpp", ".java", ".kt",
+        ".go", ".rs", ".py", ".rb", ".php", ".swift", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".html", ".htm",
+        ".css", ".scss", ".less", ".vue", ".svelte", ".xaml", ".csproj", ".props", ".targets", ".sln", ".ps1", ".bat",
+        ".cmd", ".sh", ".sql", ".tex", ".lua", ".diff", ".patch", ".srt", ".vtt", ".ass", ".lrc"
+    };
+    private static readonly HashSet<string> TextFileNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Dockerfile", "Makefile", "CMakeLists.txt", "LICENSE", "README", ".gitignore", ".gitattributes", ".editorconfig"
+    };
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly LinkedList<(string Key, FilePreview Preview, long Bytes)> Cache = new();
     private static long _cacheBytes;
@@ -61,7 +73,7 @@ internal static class FilePreviewService
         if (file.IsFolder) return new(file.Name, string.Join("\n", details), Loc.T("文件夹预览不递归读取内容。"), FileResultIcons.Get(file));
         var extension = Path.GetExtension(file.Path).ToLowerInvariant();
         string text = ""; ImageSource? image = null;
-        if (new[] { ".txt", ".md", ".log", ".csv", ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".config", ".cs", ".cpp", ".h", ".py", ".js", ".ts", ".tsx", ".jsx", ".html", ".css", ".ps1", ".bat", ".sql", ".srt", ".vtt" }.Contains(extension))
+        if (TextExtensions.Contains(extension) || TextFileNames.Contains(file.Name))
         {
             using var stream = new FileStream(file.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             var bytes = new byte[MaxTextBytes]; var length = 0;
@@ -86,20 +98,22 @@ internal static class FilePreviewService
         }
         else
         {
-            var video = new[] { ".mp4", ".mkv", ".avi", ".mov", ".webm", ".wmv", ".m4v" }.Contains(extension);
-            var audio = new[] { ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".wma" }.Contains(extension);
+            var video = extension is ".mp4" or ".mkv" or ".avi" or ".mov" or ".webm" or ".wmv" or ".m4v"
+                or ".mpg" or ".mpeg" or ".m2ts" or ".mts" or ".3gp" or ".mxf" or ".vob";
+            var audio = extension is ".mp3" or ".wav" or ".flac" or ".m4a" or ".aac" or ".ogg" or ".wma"
+                or ".opus" or ".aif" or ".aiff" or ".ape" or ".ac3" or ".weba" or ".m4b";
+            image = RegisteredAppCatalog.Extract(file.Path, 0x18, MaxImageWidth, MaxImageHeight);
+            if (image is not null) details.Add(Loc.T("预览：Windows 缓存缩略图"));
+            else
+            {
+                cancellation.ThrowIfCancellationRequested();
+                image = RegisteredAppCatalog.Extract(file.Path, 0x8, MaxImageWidth, MaxImageHeight);
+                if (image is not null) details.Add(Loc.T("预览：Windows 缩略图"));
+            }
+            cancellation.ThrowIfCancellationRequested();
+            if (image is not null) progress?.Invoke(new(file.Name, string.Join("\n", details), "", image));
             if (video || audio)
             {
-                // INCACHEONLY + THUMBNAILONLY: no codec startup on a Windows cache hit.
-                image = RegisteredAppCatalog.Extract(file.Path, 0x18, MaxImageWidth, MaxImageHeight);
-                if (image is not null) details.Add(Loc.T("预览：Windows 缓存缩略图"));
-                else
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    image = RegisteredAppCatalog.Extract(file.Path, 0x8, MaxImageWidth, MaxImageHeight);
-                    if (image is not null) details.Add(Loc.T("预览：Windows 媒体缩略图 / 专辑封面"));
-                }
-                if (image is not null) progress?.Invoke(new(file.Name, string.Join("\n", details), "", image));
                 ReadMediaProperties(file.Path, details);
                 cancellation.ThrowIfCancellationRequested();
                 if (image is not null) progress?.Invoke(new(file.Name, string.Join("\n", details.Distinct()), "", image));
@@ -134,9 +148,12 @@ internal static class FilePreviewService
             else
             {
                 cancellation.ThrowIfCancellationRequested();
-                image = RegisteredAppCatalog.Extract(file.Path, 0x8, MaxImageWidth, MaxImageHeight);
                 if (image is BitmapSource bitmap) details.Add(Loc.F($"预览分辨率：{bitmap.PixelWidth} × {bitmap.PixelHeight}"));
-                ReadMediaProperties(file.Path, details);
+                if (PackagePreview.Supports(extension))
+                {
+                    if (image is null) text = PackagePreview.Read(file.Path, extension, cancellation);
+                }
+                else ReadMediaProperties(file.Path, details);
             }
         }
         cancellation.ThrowIfCancellationRequested();

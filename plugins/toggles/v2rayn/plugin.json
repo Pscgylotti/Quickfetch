@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "v2rayn",
+  "title": "v2rayN",
+  "icon": "V",
+  "script": "proxy.ps1",
+  "executablePicker": true
+}

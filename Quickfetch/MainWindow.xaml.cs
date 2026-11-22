@@ -55,8 +55,12 @@ public partial class MainWindow : Window
         Loc.SetLanguage(_settings.UiLanguage);
         _settings.UiLanguage = TextLocalization.Language;
         InitializeComponent();
+        InitializeExtensionGesture();
         InitializeModes();
         InitializeFileColumns();
+        PreviewTouchDown += (_, _) => TouchFileControls = Visibility.Visible;
+        PreviewTouchDown += DismissExtensionsOutside;
+        PreviewMouseDown += DismissExtensionsOutside;
         InitializeFilePreview();
         InitializePinnedDrag();
         LauncherSurface.RenderTransform = new TransformGroup { Children = { _openScale, _openShift } };
@@ -113,7 +117,9 @@ public partial class MainWindow : Window
         if (_tray is not null && !_loading && _settings.IncludeRegisteredApps && _registeredApps.NeedsRefresh)
             _ = RefreshCatalog(false, Array.Empty<string>());
         if (!IsVisible) { SettingsPanel.Visibility = Visibility.Collapsed; SetToggled(SettingsButton, false); }
-        SetTouchKeyboard(TabletPosture.IsTablet);
+        var tablet = TabletPosture.IsTablet;
+        TouchFileControls = tablet || !CheckedFilePaths.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+        SetTouchKeyboard(tablet);
         if (!IsVisible)
         {
             Left = SystemParameters.WorkArea.Left + (SystemParameters.WorkArea.Width - Width) / 2;
@@ -131,7 +137,7 @@ public partial class MainWindow : Window
             {
                 Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
                 {
-                    if (IsVisible && _fileMode && !_urlMode) FindScrollViewer(Results)?.ScrollToVerticalOffset(_fileViewportOffset);
+                    if (IsVisible && _fileMode && !_urlMode) PixelWheel.FindScrollViewer(Results)?.ScrollToVerticalOffset(_fileViewportOffset);
                 });
                 QueueFilePreview();
             }
@@ -218,7 +224,12 @@ public partial class MainWindow : Window
         {
             var setting = lParam == IntPtr.Zero ? "" : Marshal.PtrToStringUni(lParam);
             if (IsVisible && setting is "ConvertibleSlateMode" or "SystemDockMode" or "UserInteractionMode")
-                Dispatcher.BeginInvoke(() => SetTouchKeyboard(TabletPosture.IsTablet));
+                Dispatcher.BeginInvoke(() =>
+                {
+                    var tablet = TabletPosture.IsTablet;
+                    TouchFileControls = tablet || !CheckedFilePaths.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+                    SetTouchKeyboard(tablet);
+                });
             ScheduleBackdrop();
         }
         return IntPtr.Zero;
@@ -346,42 +357,31 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (IsCaptureShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; _ = OpenCapture(); return; }
-        if (IsUrlShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; EnterUrlMode(); return; }
-        if (IsCharacterMapShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers)) { e.Handled = true; OpenCharacterMap(); return; }
+        var shortcutKey = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (IsDownloadsShortcut(shortcutKey, Keyboard.Modifiers)) { e.Handled = true; if (!e.IsRepeat) OpenDownloads(); return; }
+        if (IsCaptureShortcut(shortcutKey, Keyboard.Modifiers)) { e.Handled = true; _ = OpenCapture(); return; }
+        if (IsUrlShortcut(shortcutKey, Keyboard.Modifiers)) { e.Handled = true; EnterUrlMode(); return; }
+        if (IsCharacterMapShortcut(shortcutKey, Keyboard.Modifiers)) { e.Handled = true; OpenCharacterMap(); return; }
+        if (HandleExtensionsKey(e.Key)) { e.Handled = true; return; }
+        if (TogglePanel.IsVisible) return;
         if (_pinPressed is not null && e.Key == Key.Escape) { CancelPinnedDrag(); e.Handled = true; return; }
         if (e.Key == Key.Tab && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift) { SwitchMode(); e.Handled = true; return; }
-        if (_fileMode && !_urlMode && !_showingUrlHistory && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.C
-            && Results.SelectedItem is FileItem
-            && (Keyboard.FocusedElement is not TextBox pathEditor || ReferenceEquals(pathEditor, Query)))
-        {
-            e.Handled = true;
-            if (!e.IsRepeat)
-            {
-                try
-                {
-                    Clipboard.SetText(string.Join(Environment.NewLine, Results.SelectedItems.OfType<FileItem>().Select(item => "\"" + item.Path + "\"")));
-                    SetMessage(Loc.T("文件路径已复制。"));
-                }
-                catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法完成文件操作：") + ex.Message); }
-            }
-            return;
-        }
-        if (_fileMode && !_urlMode && !_showingUrlHistory && Keyboard.Modifiers == ModifierKeys.Control && e.Key is Key.C or Key.X
-            && Results.SelectedItem is FileItem file
+        if (_fileMode && !_urlMode && !_showingUrlHistory && (Results.SelectedItem is FileItem || !CheckedFilePaths.IsEmpty)
             && (Keyboard.FocusedElement is not TextBox editor || ReferenceEquals(editor, Query)))
         {
-            e.Handled = true;
-            if (!e.IsRepeat)
+            var action = (Keyboard.Modifiers, e.Key) switch
             {
-                try
-                {
-                    CopySelectedFiles(e.Key == Key.X);
-                    SetMessage(Loc.T(e.Key == Key.X ? "文件已剪切，可在资源管理器中粘贴。" : "文件已复制，可在资源管理器中粘贴。"));
-                }
-                catch (Exception ex) when (AppDiagnostics.IsRecoverable(ex)) { SetMessage(Loc.T("无法完成文件操作：") + ex.Message); }
+                (ModifierKeys.Control | ModifierKeys.Shift, Key.C) => FileMenuAction.CopyPath,
+                (ModifierKeys.Control, Key.C) => FileMenuAction.Copy,
+                (ModifierKeys.Control, Key.X) => FileMenuAction.Cut,
+                _ => FileMenuAction.None
+            };
+            if (action != FileMenuAction.None)
+            {
+                e.Handled = true;
+                if (!e.IsRepeat) RunSelectionAction(action);
+                return;
             }
-            return;
         }
         if (_touchInput && e.Key != Key.Escape) { SetTouchKeyboard(false, physicalKeyboard: true); FocusSearch(); }
         if (e.Key == Key.Escape) { Hide(); e.Handled = true; }
@@ -414,6 +414,7 @@ public partial class MainWindow : Window
         // ReadOnly alone still allows WPF/Windows keyboard invocation on edit focus.
         // In touch mode keep focus on a non-edit surface; only our keys edit the query.
         _touchInput = _settings.UseBuiltInKeyboard && !physicalKeyboard && (visible || TabletPosture.IsTablet);
+        if (visible) TouchFileControls = Visibility.Visible;
         Query.IsReadOnly = _touchInput;
         Query.Focusable = !_touchInput;
         Query.IsTabStop = !_touchInput;
@@ -548,13 +549,13 @@ public partial class MainWindow : Window
     private void SetMessage(string message) { Status.Text = message; Status.ToolTip = message; }
     private void Results_DoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (IsPinButton(e.OriginalSource as DependencyObject)) return;
+        if (FindRowAction(e.OriginalSource as DependencyObject) is not null) return;
         if (e.StylusDevice is not null) { e.Handled = true; return; }
         if (ItemsControl.ContainerFromElement(Results, e.OriginalSource as DependencyObject) is ListBoxItem) LaunchSelected();
     }
     private void Results_TouchDown(object sender, TouchEventArgs e)
     {
-        if (IsPinButton(e.OriginalSource as DependencyObject) || TouchScrollBar.Find(e.OriginalSource as DependencyObject) is not null) return;
+        if (FindRowAction(e.OriginalSource as DependencyObject) is Button || TouchScrollBar.Find(e.OriginalSource as DependencyObject) is not null) return;
         HandleResultsTouchDown(e);
     }
     private void Results_TouchMove(object sender, TouchEventArgs e)
@@ -578,7 +579,7 @@ public partial class MainWindow : Window
         Results.ReleaseAllTouchCaptures(); ReleaseResultMouseCapture();
         _doubleTap.Reset();
         var foreground = GetForegroundWindow();
-        if (!(_restoringLauncherFocus && LauncherActivation.IsStartMenu(foreground)) && !_choosingFolder && !_extensionsMenuOpen && !_pinnedMenuOpen && !_pinDragging && !IsTouchKeyboardWindow(foreground)) Hide();
+        if (!(_restoringLauncherFocus && LauncherActivation.IsStartMenu(foreground)) && !_choosingFolder && _externalQuickActions == 0 && !_pinnedMenuOpen && !_pinDragging && !IsTouchKeyboardWindow(foreground)) Hide();
     }
     private void Header_Drag(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed && e.OriginalSource is TextBlock) DragMove(); }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
@@ -637,8 +638,7 @@ public partial class MainWindow : Window
         CancelPinnedDrag();
         _disposed = true;
         _gestureActions.Cancel(); _gestureActions.Dispose(); _gestureNotice?.Close();
-        InputManager.Current.PreProcessInput -= Extensions_PreProcessInput;
-        ExtensionsButton.ContextMenu.IsOpen = false;
+        CloseExtensions();
         _activationRetry.Stop(); _restoringLauncherFocus = false;
         StopDownloads();
         CancelFilePreview();

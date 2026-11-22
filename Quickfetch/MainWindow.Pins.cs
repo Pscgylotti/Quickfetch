@@ -12,14 +12,14 @@ public partial class MainWindow
 {
     private object? _pinnedCatalog, _pinnedPaths;
     private bool _pinnedFileMode, _pinnedEnglish;
-    private static bool IsPinButton(DependencyObject? source)
+    private static System.Windows.Controls.Primitives.ButtonBase? FindRowAction(DependencyObject? source)
     {
         while (source is not null)
         {
-            if (source is Button { Name: "PinResultButton" }) return true;
+            if (source is System.Windows.Controls.Primitives.ButtonBase { Name: "PinResultButton" or "FileSelectionCheck" } button) return button;
             source = source is Visual ? VisualTreeHelper.GetParent(source) : LogicalTreeHelper.GetParent(source);
         }
-        return false;
+        return null;
     }
     private void PinResult_Click(object sender, RoutedEventArgs e)
     {

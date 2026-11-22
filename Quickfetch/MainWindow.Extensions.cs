@@ -1,7 +1,8 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
+using System.Windows.Media;
 using System.Windows.Input;
 
 namespace Quickfetch;
@@ -9,42 +10,82 @@ namespace Quickfetch;
 public partial class MainWindow
 {
     private string _characterDraft = "", _characterQuery = "";
-    private bool _extensionsMenuOpen;
     internal static bool IsCharacterMapShortcut(Key key, ModifierKeys modifiers) => key == Key.C && modifiers == ModifierKeys.Alt;
     private void Extensions_Click(object sender, RoutedEventArgs e)
     {
         if (_choosingFolder) return;
-        var menu = ExtensionsButton.ContextMenu;
-        menu.PlacementTarget = ExtensionsButton; menu.Placement = PlacementMode.Bottom; menu.IsOpen = !menu.IsOpen;
+        if (ExtensionsPanel.IsVisible) { CloseExtensions(); FocusSearch(); return; }
+        CloseQuickToggles();
+        PositionExtensions();
+        ExtensionsPanel.Visibility = Visibility.Visible;
+        SetToggled(ExtensionsButton, true);
+        CharacterMapMenuItem.Focus();
     }
-    private void Extensions_Opened(object sender, RoutedEventArgs e)
+
+    private void Extensions_RightClick(object sender, MouseButtonEventArgs e)
     {
-        _extensionsMenuOpen = true;
-        InputManager.Current.PreProcessInput -= Extensions_PreProcessInput;
-        InputManager.Current.PreProcessInput += Extensions_PreProcessInput;
+        Extensions_Click(sender, e);
+        e.Handled = true;
     }
-    private void Extensions_Closed(object sender, RoutedEventArgs e)
+
+    private void PositionExtensions()
     {
-        _extensionsMenuOpen = false;
-        InputManager.Current.PreProcessInput -= Extensions_PreProcessInput;
+        var right = ExtensionsButton.TranslatePoint(new Point(ExtensionsButton.ActualWidth, 0), ExtensionsLayer).X;
+        Canvas.SetLeft(ExtensionsPanel, Math.Clamp(right - ExtensionsPanel.Width, 0, Math.Max(0, ExtensionsLayer.ActualWidth - ExtensionsPanel.Width)));
     }
-    private void Extensions_PreProcessInput(object sender, PreProcessInputEventArgs e)
+
+    private void ExtensionsLayer_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (!ExtensionsButton.ContextMenu.IsOpen) return;
-        var input = e.StagingItem.Input;
-        Point point;
-        if (input is TouchEventArgs touch && (touch.RoutedEvent == PreviewTouchDownEvent || touch.RoutedEvent == TouchDownEvent)) point = touch.GetTouchPoint(ExtensionsButton).Position;
-        else if (input is StylusDownEventArgs stylus && (stylus.RoutedEvent == PreviewStylusDownEvent || stylus.RoutedEvent == StylusDownEvent)) point = stylus.GetPosition(ExtensionsButton);
-        else if (input is MouseButtonEventArgs mouse && mouse.ChangedButton == MouseButton.Left && mouse.ButtonState == MouseButtonState.Pressed) point = mouse.GetPosition(ExtensionsButton);
-        else return;
-        if (point.X < 0 || point.Y < 0 || point.X >= ExtensionsButton.ActualWidth || point.Y >= ExtensionsButton.ActualHeight) return;
-        // Intercept before Popup auto-dismissal: otherwise the subsequent Click opens it again.
-        input.Handled = true; ExtensionsButton.ContextMenu.IsOpen = false;
+        if (ExtensionsPanel.IsVisible) PositionExtensions();
+        if (TogglePanel.IsVisible) PositionQuickToggles();
     }
-    private void CharacterMap_Click(object sender, RoutedEventArgs e) { ExtensionsButton.ContextMenu.IsOpen = false; OpenCharacterMap(); }
+
+    private void CloseExtensions()
+    {
+        CancelExtensionPress();
+        CloseQuickToggles();
+        if (ExtensionsPanel.Visibility != Visibility.Visible) return;
+        ExtensionsPanel.Visibility = Visibility.Collapsed;
+        SetToggled(ExtensionsButton, false);
+    }
+
+    private void DismissExtensionsOutside(object? sender, InputEventArgs e)
+    {
+        if (e.OriginalSource is not Visual target) return;
+        if (TogglePanel.IsVisible && target != QuickTogglesButton && !QuickTogglesButton.IsAncestorOf(target)
+            && target != TogglePanel && !TogglePanel.IsAncestorOf(target)) CloseQuickToggles();
+        if (!ExtensionsPanel.IsVisible) return;
+        if (target == ExtensionsButton || ExtensionsButton.IsAncestorOf(target) ||
+            target == ExtensionsPanel || ExtensionsPanel.IsAncestorOf(target)) return;
+        CloseExtensions();
+    }
+
+    private bool HandleExtensionsKey(Key key)
+    {
+        if (key == Key.Escape && (_radialPopup?.IsOpen == true || TogglePanel.IsVisible)) { CloseExtensions(); FocusSearch(); return true; }
+        if (!ExtensionsPanel.IsVisible) return false;
+        var buttons = ExtensionEntries.Children.OfType<Button>().ToArray();
+        var index = Array.FindIndex(buttons, b => b.IsKeyboardFocused);
+        if (key == Key.Escape) { CloseExtensions(); FocusSearch(); return true; }
+        if (key is Key.Up or Key.Down or Key.Tab)
+        {
+            var previous = key == Key.Up || key == Key.Tab && Keyboard.Modifiers == ModifierKeys.Shift;
+            buttons[(index + (previous ? -1 : 1) + buttons.Length) % buttons.Length].Focus();
+            return true;
+        }
+        if (key is Key.Enter or Key.Space)
+        {
+            buttons[Math.Max(0, index)].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            return true;
+        }
+        return false;
+    }
+
+    private void CharacterMap_Click(object sender, RoutedEventArgs e) => OpenCharacterMap();
     private void OpenCharacterMap()
     {
         if (_choosingFolder) return;
+        CloseExtensions();
         CharacterMapWindow? window = null;
         try
         {

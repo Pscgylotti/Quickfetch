@@ -10,7 +10,7 @@ public partial class MainWindow
 {
     private bool _captureBusy;
     internal static bool IsCaptureShortcut(Key key, ModifierKeys modifiers) => key == Key.S && modifiers == ModifierKeys.Alt;
-    private void Capture_Click(object sender, RoutedEventArgs e) { ExtensionsButton.ContextMenu.IsOpen = false; _ = OpenCapture(); }
+    private void Capture_Click(object sender, RoutedEventArgs e) { _ = OpenCapture(); }
     private async Task OpenCapture()
     {
         if (_choosingFolder || _captureBusy) return;

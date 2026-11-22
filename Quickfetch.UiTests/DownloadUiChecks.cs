@@ -5,7 +5,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Quickfetch;
@@ -46,8 +48,49 @@ internal static class DownloadUiChecks
                     check(JsonSerializer.Deserialize<DownloadJob[]>(File.ReadAllText(state))!.Single().Id == jobs[2].Id, "Removed records must stay absent in the persisted queue.");
                 }
                 finally { toast.Close(); }
+                var close = Descendants<Button>(window).Single(b => AutomationProperties.GetAcceleratorKey(b) == "Esc");
+                check(ReferenceEquals(close.Style, window.FindResource("WindowDismissAction")) && close.Content as string == "\uE921" && AutomationProperties.GetName(close) == Loc.T("关闭"), "Download history must use the launcher's accessible dash button.");
+                close.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                check(!window.IsVisible, "Clicking the dash must dismiss download history.");
             }
             finally { window.Close(); }
+            var touchDialog = new DownloadsWindow(manager, settings, _ => { });
+            try
+            {
+                touchDialog.Show(); touchDialog.UpdateLayout();
+                var dismiss = Descendants<Button>(touchDialog).Single(b => AutomationProperties.GetAcceleratorKey(b) == "Esc");
+                var field = Descendants<TextBox>(touchDialog).First(t => t.IsVisible);
+                field.Focus();
+                var inside = dismiss.TranslatePoint(new Point(4, dismiss.ActualHeight / 2), touchDialog);
+                var outside = inside - new Vector(20, 0);
+                var finger = new LauncherInputChecks.TestTouch(touchDialog, 707);
+                finger.Down(inside);
+                finger.Move(outside); finger.Up(outside);
+                check(touchDialog.IsVisible, "Sliding off the download dash before release must cancel dismissal.");
+                finger.Down(inside);
+                check(touchDialog.IsVisible, "A touch press alone must leave the download panel open.");
+                finger.Up(inside);
+                check(!touchDialog.IsVisible && manager.Snapshot().Single().Status == DownloadStatus.Paused,
+                    "One raw touch on the download dash must close the panel with focus in the URL field.");
+            }
+            finally { touchDialog.Close(); }
+            foreach (var fromList in new[] { false, true })
+            {
+                var dialog = new DownloadsWindow(manager, settings, _ => { });
+                try
+                {
+                    dialog.Show(); dialog.UpdateLayout();
+                    UIElement source = fromList ? Descendants<ListBox>(dialog).Single() : Descendants<TextBox>(dialog).First(t => t.IsVisible);
+                    source.Focus();
+                    var escape = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(dialog)!, Environment.TickCount, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                    source.RaiseEvent(escape);
+                    check(escape.Handled && !dialog.IsVisible && manager.Snapshot().Single().Status == DownloadStatus.Paused, "Esc from the URL field or list must dismiss only the download window.");
+                }
+                finally { dialog.Close(); }
+            }
+            check(MainWindow.IsDownloadsShortcut(Key.D, ModifierKeys.Alt) && !MainWindow.IsDownloadsShortcut(Key.D, ModifierKeys.None) &&
+                !MainWindow.IsDownloadsShortcut(Key.D, ModifierKeys.Alt | ModifierKeys.Control) && !MainWindow.IsDownloadsShortcut(Key.W, ModifierKeys.Alt),
+                "Alt+D must be the exact local download shortcut.");
         }
         finally { foreach (var file in Directory.GetFiles(root)) File.Delete(file); Directory.Delete(root); }
     }

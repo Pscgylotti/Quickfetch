@@ -11,13 +11,35 @@
       <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem"><Border x:Name="Row" Background="Transparent" CornerRadius="6" Padding="14,10" MinHeight="44"><ContentPresenter ContentSource="Header" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/></Border><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
     </Style>
+    <local:FileCheckedConverter x:Key="FileChecked"/>
+    <Style x:Key="FileSelectionBox" TargetType="CheckBox">
+      <Setter Property="Width" Value="42"/><Setter Property="MinHeight" Value="40"/><Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox">
+        <Grid Background="Transparent">
+          <Border x:Name="Box" Width="18" Height="18" CornerRadius="4" BorderThickness="1.5" BorderBrush="{DynamicResource Muted}">
+            <Path x:Name="Tick" Data="M 1,5 L 4,8 L 10,1" Stroke="{DynamicResource OnAccent}" StrokeThickness="1.8"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+          </Border>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsChecked" Value="True"><Setter TargetName="Box" Property="Background" Value="{DynamicResource Accent}"/><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="Tick" Property="Visibility" Value="Visible"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <DataTemplate x:Key="FileItemTemplate">
       <Grid Width="{Binding FileRowsWidth, RelativeSource={RelativeSource AncestorType=Window}}" HorizontalAlignment="Left">
         <Grid.ToolTip><ToolTip><TextBlock Text="{Binding Path}" TextWrapping="Wrap" MaxWidth="554"/></ToolTip></Grid.ToolTip>
         <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding FileNameWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FilePathWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileSizeWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileDateWidth, RelativeSource={RelativeSource AncestorType=Window}}"/></Grid.ColumnDefinitions>
-        <Grid Margin="0,0,12,0"><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-          <Image Source="{Binding Icon}" Width="24" Height="24" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-          <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13.5" FontWeight="Medium" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+        <Grid Margin="0,0,12,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <CheckBox x:Name="FileSelectionCheck" Style="{StaticResource FileSelectionBox}" Click="FileSelectionCheck_Click"
+                    Visibility="{Binding TouchFileControls, RelativeSource={RelativeSource AncestorType=Window}}"
+                    AutomationProperties.Name="{Binding Name}">
+            <CheckBox.IsChecked><MultiBinding Converter="{StaticResource FileChecked}" Mode="OneWay">
+              <Binding Path="Path"/><Binding Path="CheckedFilePaths" RelativeSource="{RelativeSource AncestorType=Window}"/>
+            </MultiBinding></CheckBox.IsChecked>
+          </CheckBox>
+          <Image Grid.Column="1" Source="{Binding Icon}" Width="24" Height="24" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+          <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="13.5" FontWeight="Medium" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
         </Grid>
         <TextBlock Grid.Column="1" Text="{Binding Location}" FontSize="12" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,12,0"/>
         <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="12" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
@@ -28,16 +50,6 @@
       <Setter Property="Width" Value="28"/><Setter Property="MinHeight" Value="44"/><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Cursor" Value="SizeWE"/>
       <Setter Property="ToolTip" Value="{local:Tr T44db5abbe028}"/><Setter Property="AutomationProperties.Name" Value="{local:Tr Ta983697c66b6}"/>
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb"><Border Background="Transparent"><Border x:Name="Grip" Width="1.5" Height="16" CornerRadius="1" Background="{DynamicResource Muted}" Opacity="0.35"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Opacity" Value="0.9"/><Setter TargetName="Grip" Property="Height" Value="22"/></Trigger><Trigger Property="IsDragging" Value="True"><Setter TargetName="Grip" Property="Background" Value="{DynamicResource Accent}"/><Setter TargetName="Grip" Property="Opacity" Value="1"/><Setter TargetName="Grip" Property="Width" Value="2.5"/><Setter TargetName="Grip" Property="Height" Value="26"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
-    </Style>
-    <Style x:Key="HeaderAction" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Width" Value="48"/><Setter Property="Height" Value="48"/>
-      <Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="2,0,0,0"/><Setter Property="Focusable" Value="False"/>
-      <Setter Property="HorizontalContentAlignment" Value="Center"/>
-    </Style>
-    <Style x:Key="HeaderGlyph" TargetType="TextBlock">
-      <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/><Setter Property="FontSize" Value="17"/>
-      <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-      <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style x:Key="SecondaryAction" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
       <Setter Property="MinHeight" Value="40"/><Setter Property="Padding" Value="14,0"/><Setter Property="FontSize" Value="12.5"/>
@@ -67,24 +79,13 @@
           <Border BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="4" Padding="6,1,6,2" Margin="10,0,0,0" VerticalAlignment="Center"><TextBlock Text="Win + S" FontSize="10.5" Foreground="{DynamicResource Muted}"/></Border>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-          <Button x:Name="ExtensionsButton" Style="{StaticResource HeaderAction}" Click="Extensions_Click" ToolTip="{local:Tr Td66f6f6acc36}" AutomationProperties.Name="{local:Tr Td66f6f6acc36}"><Viewbox Width="21" Height="21"><Path Width="24" Height="24" Data="M8 4H5A1 1 0 0 0 4 5V9H6A2 2 0 0 1 6 13H4V19A1 1 0 0 0 5 20H9V18A2 2 0 0 1 13 18V20H19A1 1 0 0 0 20 19V13H18A2 2 0 0 1 18 9H20V5A1 1 0 0 0 19 4H15V6A2 2 0 0 1 11 6V4Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Viewbox>
-            <Button.ContextMenu>
-              <ContextMenu Opened="Extensions_Opened" Closed="Extensions_Closed" Placement="Bottom">
-                <ContextMenu.Template><ControlTemplate TargetType="ContextMenu"><Border Background="{DynamicResource TooltipSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="9" Padding="5" MinWidth="240"><StackPanel><TextBlock Text="{local:Tr Td66f6f6acc36}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="12,7,12,4"/><ItemsPresenter/></StackPanel></Border></ControlTemplate></ContextMenu.Template>
-                <MenuItem x:Name="CharacterMapMenuItem" Header="{local:Tr Ted55662a52fa}" InputGestureText="Alt + C" Click="CharacterMap_Click">
-                  <MenuItem.Template><ControlTemplate TargetType="MenuItem"><Border x:Name="Row" CornerRadius="6" Background="Transparent" Padding="12,10" MinHeight="44"><DockPanel><TextBlock Text="Alt + C" FontSize="11" Foreground="{DynamicResource Muted}" DockPanel.Dock="Right" Margin="28,0,0,0" VerticalAlignment="Center"/><TextBlock Text="Ω" FontSize="20" Foreground="{DynamicResource Accent}" Width="32" VerticalAlignment="Center"/><ContentPresenter ContentSource="Header" VerticalAlignment="Center" TextElement.Foreground="{DynamicResource Ink}"/></DockPanel></Border><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></MenuItem.Template>
-                </MenuItem>
-                <MenuItem x:Name="CaptureMenuItem" Header="{local:Tr Tec72b3056ca6}" InputGestureText="Alt + S" Click="Capture_Click">
-                  <MenuItem.Template><ControlTemplate TargetType="MenuItem"><Border x:Name="Row" CornerRadius="6" Background="Transparent" Padding="12,10" MinHeight="44"><DockPanel><TextBlock Text="Alt + S" FontSize="11" Foreground="{DynamicResource Muted}" DockPanel.Dock="Right" Margin="28,0,0,0" VerticalAlignment="Center"/><TextBlock Text="&#xE722;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="{DynamicResource Accent}" Width="32" VerticalAlignment="Center"/><ContentPresenter ContentSource="Header" VerticalAlignment="Center" TextElement.Foreground="{DynamicResource Ink}"/></DockPanel></Border><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></MenuItem.Template>
-                </MenuItem>
-              </ContextMenu>
-            </Button.ContextMenu>
+          <Button x:Name="ExtensionsButton" Style="{StaticResource HeaderAction}" Click="Extensions_Click" MouseRightButtonUp="Extensions_RightClick" ToolTip="{local:Tr Td66f6f6acc36}" AutomationProperties.Name="{local:Tr Td66f6f6acc36}"><Viewbox Width="21" Height="21"><Path Width="24" Height="24" Data="M8 4H5A1 1 0 0 0 4 5V9H6A2 2 0 0 1 6 13H4V19A1 1 0 0 0 5 20H9V18A2 2 0 0 1 13 18V20H19A1 1 0 0 0 20 19V13H18A2 2 0 0 1 18 9H20V5A1 1 0 0 0 19 4H15V6A2 2 0 0 1 11 6V4Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Viewbox>
           </Button>
-          <Button x:Name="DownloadsButton" Style="{StaticResource HeaderAction}" Click="Downloads_Click" ToolTip="{local:Tr T47e07482256d}" AutomationProperties.Name="{local:Tr T47e07482256d}"><TextBlock Text="&#xE896;" Style="{StaticResource HeaderGlyph}"/></Button>
+          <Button x:Name="QuickTogglesButton" Style="{StaticResource HeaderAction}" Click="QuickToggles_Click" ToolTip="{local:Tr T1ab21df56384}" AutomationProperties.Name="{local:Tr T1ab21df56384}"><Viewbox Width="21" Height="21"><Path Data="M2,6 H7 M11,6 H22 M2,17 H13 M17,17 H22 M9,3 V9 M15,14 V20" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Viewbox></Button>
           <Button x:Name="ModeButton" Style="{StaticResource HeaderAction}" Click="Mode_Click" ToolTip="{local:Tr Td21be1b27cb3}" AutomationProperties.Name="{local:Tr T27ac0e067a68}"><TextBlock Text="&#xE8AB;" Style="{StaticResource HeaderGlyph}"/></Button>
           <Button x:Name="KeyboardToggle" Style="{StaticResource HeaderAction}" Click="Keyboard_Click" ToolTip="{local:Tr Ta06b8765726f}" AutomationProperties.Name="{local:Tr Tff391a17b71f}"><TextBlock Text="&#xE765;" Style="{StaticResource HeaderGlyph}" FontSize="19"/></Button>
           <Button x:Name="SettingsButton" Style="{StaticResource HeaderAction}" Click="Settings_Click" ToolTip="{local:Tr Tdf3d58c7d84b}" AutomationProperties.Name="{local:Tr Tdf3d58c7d84b}"><TextBlock Text="&#xE713;" Style="{StaticResource HeaderGlyph}"/></Button>
-          <Button x:Name="HideButton" Style="{StaticResource HeaderAction}" Click="Hide_Click" ToolTip="{local:Tr Teff140404360}" AutomationProperties.Name="{local:Tr T6d1955fae43e}"><TextBlock Text="&#xE921;" Style="{StaticResource HeaderGlyph}" FontSize="13"/></Button>
+          <Button x:Name="HideButton" Style="{StaticResource WindowDismissAction}" Click="Hide_Click" ToolTip="{local:Tr Teff140404360}" AutomationProperties.Name="{local:Tr T6d1955fae43e}"/>
         </StackPanel>
       </DockPanel>
       <Border Grid.Row="1" Height="52" Margin="0,4,0,10" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="14,0">
@@ -112,7 +113,7 @@
       </Border>
       <Grid x:Name="ResultsSurface" Grid.Row="3">
         <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Grid x:Name="FileSortHeader" Visibility="Collapsed" Margin="10,0,42,2" SizeChanged="FileHeader_SizeChanged">
           <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding FileNameWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FilePathWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileSizeWidth, RelativeSource={RelativeSource AncestorType=Window}}"/><ColumnDefinition Width="{Binding FileDateWidth, RelativeSource={RelativeSource AncestorType=Window}}"/></Grid.ColumnDefinitions>
           <Button x:Name="NameSort" Margin="-8,0,28,0" Style="{StaticResource ColumnAction}" Content="{local:Tr T7953ecf86928}" Tag="0" Click="Sort_Click"/>
@@ -164,9 +165,61 @@
           <TextBlock x:Name="EmptyMessage" Text="{local:Tr Ta6133870905a}" FontSize="12.5" LineHeight="20" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" MaxWidth="460" TextAlignment="Center" Visibility="Collapsed"/>
           <Button x:Name="InstallEverythingButton" Content="{local:Tr T5ec63d73b71a}" Click="InstallEverything_Click" Visibility="Collapsed" Focusable="False" Margin="0,14,0,0" Height="44" Padding="20,0" HorizontalAlignment="Center" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" FontWeight="SemiBold"/>
         </StackPanel>
+        <Grid Grid.Row="2">
+          <Grid.Style><Style TargetType="Grid">
+            <Setter Property="Visibility" Value="{Binding Visibility, ElementName=FileSortHeader}"/>
+            <Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=Results}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+          </Style></Grid.Style>
+          <Border x:Name="FileSelectionBar" Margin="0,4,0,0" Padding="3" CornerRadius="8" Background="{DynamicResource Panel}">
+            <Border.Style><Style TargetType="Border"><Style.Triggers>
+              <DataTrigger Binding="{Binding CheckedFilePaths.Count, RelativeSource={RelativeSource AncestorType=Window}}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+            </Style.Triggers></Style></Border.Style>
+            <DockPanel>
+              <TextBlock x:Name="CheckedSummary" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="9,0,6,0" MaxWidth="185" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" FontSize="12" Foreground="{DynamicResource Muted}"/>
+            <UniformGrid Rows="1" Button.Click="FileSelectionAction_Click">
+              <UniformGrid.Resources><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Height" Value="44"/><Setter Property="Focusable" Value="False"/></Style></UniformGrid.Resources>
+              <Button Tag="{x:Static local:FileMenuAction.Copy}" Content="{local:Tr T63d90d977348}"/>
+              <Button Tag="{x:Static local:FileMenuAction.Cut}" Content="{local:Tr T410a8e8a6bf2}"/>
+              <Button Tag="{x:Static local:FileMenuAction.CopyPath}" Content="{local:Tr Tb97c49acb930}"/>
+            </UniformGrid>
+            </DockPanel>
+          </Border>
+        </Grid>
       </Grid>
       <local:TouchKeyboard x:Name="QuickKeyboard" Grid.Row="4" Visibility="Collapsed" Margin="0,8,0,0"/>
       <DockPanel Grid.Row="5" Margin="4,4,4,0"><TextBlock x:Name="Status" DockPanel.Dock="Left" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/><Button x:Name="MoreResults" DockPanel.Dock="Left" Visibility="Collapsed" Content="{local:Tr Taf90a08fec8e}" Click="More_Click" Focusable="False" FontSize="11" Foreground="{DynamicResource Accent}" Padding="8,0" Height="24" Margin="6,0,0,0"/><TextBlock x:Name="ResultHint" Text="{local:Tr T600114feba06}" FontSize="11" Foreground="{DynamicResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel>
+      <Canvas x:Name="ExtensionsLayer" Grid.Row="1" Grid.RowSpan="5" Panel.ZIndex="1" SizeChanged="ExtensionsLayer_SizeChanged">
+        <Border x:Name="ExtensionsPanel" Visibility="Collapsed" Width="240" Padding="5" Background="{DynamicResource TooltipSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="9">
+          <StackPanel x:Name="ExtensionEntries">
+            <StackPanel.Resources>
+              <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="MinHeight" Value="44"/><Setter Property="Padding" Value="12,8"/>
+                <Style.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Background" Value="{DynamicResource Hover}"/></Trigger></Style.Triggers>
+              </Style>
+            </StackPanel.Resources>
+            <TextBlock Text="{local:Tr Td66f6f6acc36}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="12,7,12,4"/>
+            <Button x:Name="CharacterMapMenuItem" Click="CharacterMap_Click" AutomationProperties.Name="{local:Tr Ted55662a52fa}" AutomationProperties.AcceleratorKey="Alt + C">
+              <DockPanel><TextBlock DockPanel.Dock="Right" Text="Alt + C" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+                <TextBlock Text="Ω" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                <TextBlock Text="{local:Tr Ted55662a52fa}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/></DockPanel>
+            </Button>
+            <Button x:Name="CaptureMenuItem" Click="Capture_Click" AutomationProperties.Name="{local:Tr Tec72b3056ca6}" AutomationProperties.AcceleratorKey="Alt + S">
+              <DockPanel><TextBlock DockPanel.Dock="Right" Text="Alt + S" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+                <TextBlock Text="&#xE722;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                <TextBlock Text="{local:Tr Tec72b3056ca6}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/></DockPanel>
+            </Button>
+            <Button x:Name="DownloadsButton" Click="Downloads_Click" AutomationProperties.Name="{local:Tr T47e07482256d}" AutomationProperties.AcceleratorKey="Alt + D">
+              <DockPanel><TextBlock DockPanel.Dock="Right" Text="Alt + D" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+                <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                <TextBlock Text="{local:Tr T47e07482256d}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/></DockPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+        <Border x:Name="TogglePanel" Visibility="Collapsed" Padding="13,11" Background="{DynamicResource TooltipSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10">
+          <Border.Resources><ResourceDictionary Source="QuickSettingsStyles.xaml"/></Border.Resources>
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel x:Name="ToggleBody"/></ScrollViewer>
+        </Border>
+      </Canvas>
     </Grid>
     <Border x:Name="FilePreviewPanel" Grid.Column="2" Width="300" Margin="0,12,16,12" Padding="16" CornerRadius="10" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Visibility="Collapsed">
       <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly" IsDeferredScrollingEnabled="False">

@@ -54,6 +54,8 @@ public partial class MainWindow
     private void Results_FileMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (!_fileMode || _draggingFile || e.StylusDevice is not null) return;
+        _mouseFileItem = null;
+        if (FindRowAction(e.OriginalSource as DependencyObject) is not null) return;
         _mouseFileStart = e.GetPosition(Results);
         _mouseFileItem = (ItemsControl.ContainerFromElement(Results, e.OriginalSource as DependencyObject) as ListBoxItem)?.Content as FileItem;
     }

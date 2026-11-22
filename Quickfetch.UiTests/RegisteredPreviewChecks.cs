@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -32,6 +33,7 @@ internal static class RegisteredPreviewChecks
         var temp = Path.Combine(Path.GetTempPath(), "Quickfetch-preview-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(temp);
         try
         {
+            CheckNewFormats(temp, check);
             var textPath = Path.Combine(temp, "sample.txt"); File.WriteAllText(textPath, "预览测试\n" + new string('a', 100000));
             var text = FilePreviewService.LoadAsync(new("sample.txt", temp, textPath, false, 100000, null), CancellationToken.None).GetAwaiter().GetResult();
             check(text.Text.StartsWith("预览测试") && text.Text.Length < 33000 && text.Text.Contains("32 KiB"), "Text preview must be bounded and support UTF-8.");
@@ -76,6 +78,42 @@ internal static class RegisteredPreviewChecks
         CheckTouch(window, check);
         CheckPreviewPanel(window, check);
     }
+    private static void CheckNewFormats(string directory, Action<bool, string> check)
+    {
+        foreach (var name in new[] { "main.rs", "Dockerfile", ".gitignore", "data.tsv" })
+        {
+            var path = Path.Combine(directory, name);
+            File.WriteAllText(path, "预览 sample");
+            var file = new FileEntry(name, directory, path, false, null, null);
+            check(FilePreviewService.LoadAsync(file, CancellationToken.None).GetAwaiter().GetResult().Text == "预览 sample",
+                "Text and extensionless sources must have readable previews: " + name);
+        }
+        foreach (var (ext, part, xml, expected) in new[]
+        {
+            (".docx", "word/document.xml", "<doc><p><t>Hello </t><t>world.</t></p></doc>", "Hello world."),
+            (".pptx", "ppt/slides/slide1.xml", "<slide><p><t>Summary</t></p></slide>", "Summary"),
+            (".xlsx", "xl/workbook.xml", "<workbook><sheets><sheet name='Budget'/></sheets></workbook>", "Budget"),
+            (".odt", "content.xml", "<doc><p>Mixed <span>styles</span></p></doc>", "Mixed styles")
+        })
+        {
+            var path = Path.Combine(directory, "example" + ext);
+            using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+            using (var writer = new StreamWriter(archive.CreateEntry(part).Open())) writer.Write(xml);
+            check(PackagePreview.Read(path, ext, CancellationToken.None).Contains(expected),
+                "Packages without a system thumbnail must fall back to readable contents: " + ext);
+        }
+        var zipPath = Path.Combine(directory, "files.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            for (var i = 0; i <= 40; i++) archive.CreateEntry($"folder/file{i}.txt");
+        var listing = PackagePreview.Read(zipPath, ".zip", CancellationToken.None);
+        check(listing.Contains("folder/file39.txt") && !listing.Contains("file40.txt") && listing.EndsWith("…"),
+            "Archive previews must list at most 40 entry names.");
+        var result = FilePreviewService.LoadAsync(new("files.zip", directory, zipPath, false, null, null), CancellationToken.None).GetAwaiter().GetResult();
+        check(result.Text == listing || result.Image is System.Windows.Media.Imaging.BitmapSource && result.Details.Contains("Windows"),
+            "The file preview pane must prefer a Windows thumbnail or show the archive contents.");
+        File.WriteAllText(zipPath, "invalid zip");
+        check(PackagePreview.Read(zipPath, ".zip", CancellationToken.None) == "", "Damaged packages must fall back to metadata.");
+    }
     private static void CheckPreviewPanel(MainWindow window, Action<bool, string> check)
     {
         window.ShowLauncher();
@@ -109,7 +147,45 @@ internal static class RegisteredPreviewChecks
         var results = (ListBox)window.FindName("Results");
         results.ItemsSource = Enumerable.Range(0, 200).Select(i => new FileItem(new("test" + i, "C:\\", "C:\\test" + i, false, i, null))).ToArray();
         window.UpdateLayout();
+        ((FrameworkElement)window.FindName("EmptyMessage")).Visibility = Visibility.Collapsed;
+        ((FrameworkElement)window.FindName("InstallEverythingButton")).Visibility = Visibility.Collapsed;
+        window.SystemKeyboardRequest = _ => true;
+        window.SetKeyboardPreference(false, showKeyboard: true);
+        results.SelectedIndex = 0;
+        window.UpdateLayout();
+        var barPanel = (Border)window.FindName("FileSelectionBar");
+        ListBoxItem Row(int i) => (ListBoxItem)results.ItemContainerGenerator.ContainerFromIndex(i);
+        CheckBox Box(int i) => Descendant<CheckBox>(Row(i))!;
+        Point BoxPoint(int i) => Box(i).TranslatePoint(new Point(Box(i).ActualWidth / 2, Box(i).ActualHeight / 2), window);
+        var tap = new TestTouch(window, 9000);
+        void Tap(Point point) { tap.Down(point); tap.Up(point); window.UpdateLayout(); }
+        check(!barPanel.IsVisible && Box(0).IsChecked == false, "Automatic highlight must leave the checkboxes empty and collapse the action bar.");
+        Tap(BoxPoint(1));
+        check(Box(1).IsChecked == true && Box(0).IsChecked == false && results.SelectedIndex == 0 &&
+            barPanel.IsVisible && Descendants<Button>(barPanel).Count(b => b.IsEnabled && b.ActualHeight >= 40) == 3,
+            "Only the tapped checkbox should change, and the first check must reveal the three actions.");
+        Tap(Row(2).TranslatePoint(new Point(85, Row(2).ActualHeight / 2), window));
+        check(results.SelectedIndex == 2 && Box(2).IsChecked == false && Box(1).IsChecked == true && barPanel.IsVisible,
+            "Browsing another row must move the highlight while retaining checked files.");
+        Tap(BoxPoint(0));
+        check(window.FileClipboardTargets(true).Select(item => item.Name).SequenceEqual(new[] { "test0", "test1" }) &&
+            window.FileClipboardTargets(false).Length == 2 && window.CheckedSummary.Text.Contains("1 B"),
+            "Clipboard actions and the size summary must use only the explicit checks when browsing another row.");
         var scroll = Descendant<ScrollViewer>(results)!;
+        scroll.ScrollToBottom(); window.UpdateLayout(); scroll.ScrollToTop(); window.UpdateLayout();
+        check(Box(0).IsChecked == true && Box(1).IsChecked == true && Box(2).IsChecked == false,
+            "Recycling virtual rows must preserve the checks with the correct files.");
+        var point = BoxPoint(1);
+        tap.Down(point); tap.Move(new Point(point.X, point.Y - 24)); tap.Up(new Point(point.X, point.Y - 24)); window.UpdateLayout();
+        check(window.CheckedFilePaths.Count == 2 && results.SelectedIndex == 2, "Panning from a checkbox must preserve checks and highlight.");
+        scroll.ScrollToTop(); window.UpdateLayout();
+        Tap(BoxPoint(1));
+        check(!Box(1).IsChecked.GetValueOrDefault() && Box(0).IsChecked == true && barPanel.IsVisible,
+            "Clearing one of two checked rows must keep the remaining item and actions.");
+        Tap(BoxPoint(0));
+        check(!barPanel.IsVisible && results.SelectedIndex == 2 && window.FileClipboardTargets(true).Length == 0 &&
+            window.FileClipboardTargets(false).Single().Name == "test2", "Clearing the final checkbox must collapse the bar and restore keyboard clipboard targeting.");
+        window.SetKeyboardPreference(true, showKeyboard: false);
         scroll.ScrollToTop(); window.UpdateLayout();
         var bar = Descendants<ScrollBar>(scroll).First(b => b.Orientation == Orientation.Vertical);
         bar.ApplyTemplate(); var track = (Track)bar.Template.FindName("PART_Track", bar); window.UpdateLayout();

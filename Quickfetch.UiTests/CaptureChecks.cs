@@ -29,7 +29,7 @@ internal static class CaptureChecks
             var screen = new ScreenCapture(image, new(-1920, -200, image.PixelWidth, image.PixelHeight), [new(new(20, 20, 600, 150), "Front"), new(new(0, 0, 1000, 360), "Back")]);
             check(MainWindow.IsCaptureShortcut(Key.S, ModifierKeys.Alt) && !MainWindow.IsCaptureShortcut(Key.S, ModifierKeys.Control) && !MainWindow.IsCaptureShortcut(Key.S, ModifierKeys.Alt | ModifierKeys.Shift), "Screenshot shortcut must be Alt+S without extra modifiers.");
             var main = new MainWindow(new Settings(), _ => { });
-            try { var menu = ((Button)main.FindName("ExtensionsButton")).ContextMenu; check(menu.Items.Count == 2 && menu.Items[1] is MenuItem { InputGestureText: "Alt + S" }, "Screenshot must be the second extension after Character Map."); }
+            try { var entries = main.ExtensionEntries.Children.OfType<Button>().ToArray(); check(entries.Length == 3 && entries[2] == main.DownloadsButton && entries[1] == main.CaptureMenuItem && System.Windows.Automation.AutomationProperties.GetAcceleratorKey(entries[1]) == "Alt + S", "Screenshot must be the second extension after Character Map."); }
             finally { main.DisposeLauncher(); main.Close(); }
             check(CaptureOverlay.Region(new(301.2, 150.2), new(-10, -20), 1000, 360) == new Int32Rect(0, 0, 302, 151), "Reverse drags must clamp to the physical desktop and include fractional boundary pixels.");
             check(CaptureOverlay.Region(new(20, 20), new(20, 20), 1000, 360).IsEmpty, "A stationary tap must not create an invalid region.");

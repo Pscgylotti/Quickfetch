@@ -23,6 +23,7 @@ public partial class MainWindow
     public double FileRowsWidth { get => (double)GetValue(FileRowsWidthProperty); set => SetValue(FileRowsWidthProperty, value); }
     private readonly FileTouchTracker _fileTouches = new();
     private ILauncherItem? _fileTouchItem;
+    private bool _touchOnSelectionBox;
     private int? _columnTouch;
     private double _columnTouchX;
     private void InitializeFileColumns()
@@ -98,8 +99,9 @@ public partial class MainWindow
         if (!_fileTouches.Active)
         {
             _fileTouchItem = (ItemsControl.ContainerFromElement(Results, Results.InputHitTest(point) as DependencyObject) as ListBoxItem)?.Content as ILauncherItem;
+            _touchOnSelectionBox = FindRowAction(e.OriginalSource as DependencyObject) is CheckBox;
             _fileHoldMoved = false; _fileHoldPoint = point; _fileHoldScreen = Results.PointToScreen(point);
-            _fileHold.Stop(); if (_fileTouchItem is FileItem) _fileHold.Start();
+            _fileHold.Stop(); if (_fileTouchItem is FileItem && !_touchOnSelectionBox) _fileHold.Start();
         }
         else { _doubleTap.Reset(); _fileHoldMoved = true; _fileHold.Stop(); }
         _fileTouches.Down(e.TouchDevice.Id, point.X, point.Y, Environment.TickCount64, _settings.Gestures.TapDistance);
@@ -111,7 +113,7 @@ public partial class MainWindow
         var point = e.GetTouchPoint(Results).Position;
         if ((point - _fileHoldPoint).Length > 12) { _fileHoldMoved = true; _fileHold.Stop(); }
         var delta = _fileTouches.Move(e.TouchDevice.Id, point.X, point.Y);
-        if (delta != 0 && FindScrollViewer(Results) is { } scroll) { scroll.ScrollToVerticalOffset(scroll.VerticalOffset - delta); _doubleTap.Reset(); }
+        if (delta != 0 && PixelWheel.FindScrollViewer(Results) is { } scroll) { scroll.ScrollToVerticalOffset(scroll.VerticalOffset - delta); _doubleTap.Reset(); }
         e.Handled = true; return true;
     }
     private bool HandleResultsTouchUp(TouchEventArgs e)
@@ -125,6 +127,11 @@ public partial class MainWindow
         var item = _fileTouchItem;
         if (!_fileTouches.Active) _fileTouchItem = null;
         if (item is null || !Results.Items.Contains(item)) { _doubleTap.Reset(); return true; }
+        if (_touchOnSelectionBox)
+        {
+            if (result.Action == FileTouchAction.Tap && item is FileItem file) ToggleFileSelection(file);
+            return true;
+        }
         if (result.Action == FileTouchAction.ContextMenu && _settings.Gestures.TwoFingerRightClick)
         {
             _doubleTap.Reset(); Results.SelectedItem = item;
@@ -153,29 +160,5 @@ public partial class MainWindow
     private void ReleaseResultMouseCapture()
     {
         if (Mouse.Captured is DependencyObject captured && (ReferenceEquals(captured, Results) || Results.IsAncestorOf(captured))) Mouse.Capture(null);
-    }
-    private bool _wheelPending;
-    private double _wheelTarget;
-    private void Results_MouseWheel(object sender, MouseWheelEventArgs e)
-    {
-        if (FindScrollViewer(Results) is not { } scroll || scroll.ScrollableHeight <= 0) return;
-        e.Handled = true;
-        if (!_wheelPending) _wheelTarget = scroll.VerticalOffset;
-        // Preserve high-resolution deltas; coalesce bursts rather than scrolling full rows.
-        _wheelTarget = Math.Clamp(_wheelTarget - e.Delta * .25, 0, scroll.ScrollableHeight);
-        if (_wheelPending) return;
-        _wheelPending = true;
-        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, () =>
-        {
-            _wheelPending = false;
-            if (IsVisible) scroll.ScrollToVerticalOffset(_wheelTarget);
-        });
-    }
-    private static ScrollViewer? FindScrollViewer(DependencyObject parent)
-    {
-        if (parent is ScrollViewer scroll) return scroll;
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            if (FindScrollViewer(VisualTreeHelper.GetChild(parent, i)) is { } found) return found;
-        return null;
     }
 }
