@@ -6,12 +6,12 @@ Windows 11 x64 · C# / WPF / .NET 10。无需 Electron、浏览器内核或 Wind
 
 ## 下载与运行
 
-在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.8**：
+在 [Releases](https://github.com/Pscgylotti/Quickfetch/releases) 下载 **0.0.9**：
 
-- `Quickfetch-0.0.8-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
-- `Quickfetch-0.0.8-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
+- `Quickfetch-0.0.9-win-x64-portable.zip`：包含 .NET 运行时，解压运行 `Quickfetch.exe`。
+- `Quickfetch-0.0.9-win-x64-framework-dependent.zip`：较小，需要 [.NET 10 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
-更新内容见 [0.0.8 更新说明](docs/RELEASE-0.0.8.md)。界面文字统一使用微软雅黑 UI，避免中英文文件名回退到不同字体与字重。
+更新内容见 [0.0.9 更新说明](docs/RELEASE-0.0.9.md)。界面文字统一使用微软雅黑 UI，避免中英文文件名回退到不同字体与字重。
 
 启动后驻留托盘，**Win + S** 打开搜索。设置中可开启开机启动；默认关闭。托盘右键退出会释放快捷键。`--background` 仅在后台启动。
 
@@ -39,9 +39,11 @@ Release 同时提供 Edge / Chrome / Firefox 扩展 ZIP，下载设置中可安�
 
 ## 快捷开关与扩展轮盘
 
-轻点拼图按钮打开扩展列表。按住或向外拖动后，滑向字符映射、截图或下载，在对应区域松手即可打开。在圆心松手可取消。
+轻点拼图按钮打开扩展列表。按住或向外拖动会显示图标轮盘。滑向字符映射、截图或下载的图标，松手即打开对应功能。滑出轮盘后仍按松手时的方向选择，拖回中心松手可取消。
 
-拼图旁的开关按钮提供 Wi-Fi、蓝牙、夜间模式、旋转锁定、飞行模式和移动热点。下方可调整屏幕亮度和音量，音量右侧可选择扬声器和麦克风。v2rayN 开关可在选项中指定程序位置。自定义开关的目录和接口见[插件格式说明](docs/quick-toggles.md)。
+拼图旁的开关按钮提供 Wi-Fi、蓝牙、电源模式、旋转锁定、飞行模式和移动热点。「电源模式」主按钮切换 Windows 节能模式，右侧箭头可选择最佳能效、平衡或最佳性能。Wi-Fi、蓝牙和音量右侧的箭头直接打开 Windows 对应面板，收起后仍停在原来的快捷开关页。v2rayN 开关可在选项中指定程序位置。自定义开关的目录和接口见[插件格式说明](docs/quick-toggles.md)。
+
+拖动主面板顶部的短横条可移动窗口。触屏上长按后拖动，松手后记住位置。双击或双触横条可恢复到当前显示器中央。
 
 ## 操作
 

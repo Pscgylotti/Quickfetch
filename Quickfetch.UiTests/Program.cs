@@ -26,18 +26,20 @@ internal static class Program
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); passed++; }
         var app = new App { SuppressLauncherStartup = true };
         app.InitializeComponent();
+        if (args.Contains("--window-grip")) { LauncherInputChecks.CheckWindowGrip(Check, args.Contains("--native-mouse")); Console.WriteLine($"PASS: {passed} launcher placement checks"); app.Shutdown(); return; }
         if (args.Contains("--pin-drag")) { PinnedDragChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin drag and gesture notice checks"); app.Shutdown(); return; }
         if (args.Contains("--preview")) { var main = new MainWindow(new Settings(), _ => { }); try { RegisteredPreviewChecks.Run(main, Check, args.Contains("--integration")); } finally { main.DisposeLauncher(); main.Close(); } Console.WriteLine($"PASS: {passed} file preview and touch checks"); app.Shutdown(); return; }
         if (args.Contains("--file-ui")) { var main = new MainWindow(new Settings(), _ => { }); try { FileUiChecks.Run(main, Check, false); } finally { main.DisposeLauncher(); main.Close(); } Console.WriteLine($"PASS: {passed} file UI checks"); app.Shutdown(); return; }
         if (args.Contains("--file-session")) { FileSessionChecks.Run(Check); Console.WriteLine($"PASS: {passed} file workflow checks"); app.Shutdown(); return; }
         if (args.Contains("--pins")) { PinnedChecks.Run(Check); Console.WriteLine($"PASS: {passed} pin and dropdown checks"); app.Shutdown(); return; }
-        if (args.Contains("--quick-toggles")) { QuickToggleChecks.Run(Check); Console.WriteLine($"PASS: {passed} quick settings and extension wheel checks"); app.Shutdown(); return; }
+        if (args.Contains("--quick-toggles")) { QuickToggleChecks.Run(Check, args.Contains("--native-flyouts"), args.Contains("--energy-saver")); Console.WriteLine($"PASS: {passed} quick settings and extension wheel checks"); app.Shutdown(); return; }
         if (args.Contains("--launcher-input")) { LauncherInputChecks.Run(Check, args.Contains("--start-menu"), args.Contains("--native-touch")); Console.WriteLine($"PASS: {passed} launcher input checks"); app.Shutdown(); return; }
         if (args.Contains("--capture")) { CaptureChecks.Run(Check, args.Contains("--integration")); Console.WriteLine($"PASS: {passed} screenshot checks"); app.Shutdown(); return; }
         if (args.Contains("--release005")) { Release005Checks.Run(Check); Console.WriteLine($"PASS: {passed} release UI checks"); app.Shutdown(); return; }
         if (args.Contains("--download-records")) { DownloadUiChecks.RunRecordRemoval(Check); Console.WriteLine($"PASS: {passed} download record checks"); app.Shutdown(); return; }
         if (args.Contains("--characters")) { var main = new MainWindow(new Settings(), _ => { }); CharacterMapChecks.Run(main, Check); Console.WriteLine($"PASS: {passed} character map UI checks"); app.Shutdown(); return; }
         DiagnosticsChecks.Run(Check);
+        LauncherInputChecks.CheckWindowGrip(Check);
         PowerLifecycleChecks.Run(Check);
         LauncherInputChecks.Run(Check, startMenu: false);
         Check(AppContext.TryGetSwitch("Switch.System.Windows.Input.Stylus.DisableImplicitTouchKeyboardInvocation", out var disabled) && disabled, "WPF implicit system-keyboard invocation must be disabled in this application.");

@@ -12,6 +12,73 @@ using Quickfetch.Core;
 
 internal static class LauncherInputChecks
 {
+    internal static void CheckWindowGrip(Action<bool, string> check, bool nativeMouse = false)
+    {
+        var settings = new Settings();
+        int saves = 0;
+        var main = new MainWindow(settings, _ => saves++);
+        try
+        {
+            main.ShowLauncher(); Pump(320);
+            Point Grip() => main.WindowGrip.TranslatePoint(new Point(main.WindowGrip.ActualWidth / 2, main.WindowGrip.ActualHeight / 2), main);
+            Point Origin() => main.PointToScreen(new Point());
+            var centered = Origin();
+            var finger = new TestTouch(main, 3101);
+            finger.Down(Grip()); finger.Move(Grip() + new Vector(30, 0)); finger.Up(Grip() + new Vector(30, 0));
+            check((Origin() - centered).Length <= 1 && saves == 0, "An unheld swipe on the grip must not move or save the window.");
+            finger.Down(Grip()); Pump(390);
+            var destination = main.PointToScreen(Grip() + new Vector(-70, 40));
+            finger.Move(main.PointFromScreen(destination)); Pump(40);
+            finger.Up(main.PointFromScreen(destination)); Pump(50);
+            var moved = Origin();
+            check((moved - centered).Length > 25 && saves == 1 && settings.WindowPlacement != null,
+                "Long-press dragging must move the launcher and persist only on release.");
+            main.Hide(); main.ShowLauncher(); Pump(320);
+            check((Origin() - moved).Length <= 2, "Reopening the launcher must restore the dragged position.");
+            var restored = System.Text.Json.JsonSerializer.Deserialize<Settings>(System.Text.Json.JsonSerializer.Serialize(settings))!;
+            var second = new MainWindow(restored, _ => { });
+            main.Hide();
+            try
+            {
+                second.ShowLauncher(); Pump(320);
+                check((second.PointToScreen(new Point()) - moved).Length <= 2, "A new launcher instance must read the saved position.");
+            }
+            finally { second.DisposeLauncher(); second.Close(); }
+            main.ShowLauncher(); Pump(320);
+            finger.Down(Grip()); finger.Up(Grip()); Pump(55); finger.Down(Grip()); finger.Up(Grip()); Pump(40);
+            check((Origin() - centered).Length <= 2 && settings.WindowPlacement is { Horizontal: .5, Vertical: .5 },
+                "Double-tapping the grip must reset the saved position to the monitor center.");
+            if (nativeMouse)
+            {
+                var originalCursor = System.Windows.Forms.Cursor.Position;
+                var down = false;
+                void Press(bool pressed)
+                {
+                    var input = new Input { Data = new InputData { Mouse = new MouseInput { Flags = pressed ? 2u : 4u } } };
+                    if (SendInput(1, new[] { input }, Marshal.SizeOf<Input>()) != 1)
+                        throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+                    down = pressed; Pump(25);
+                }
+                try
+                {
+                    var grip = main.PointToScreen(Grip());
+                    var cursor = new System.Drawing.Point((int)grip.X, (int)grip.Y);
+                    var own = new WindowInteropHelper(main).Handle;
+                    check(LauncherActivation.Activate(main) && WindowFromPoint(new NativePoint { X = cursor.X, Y = cursor.Y }) == own,
+                        "Native mouse input must target the test launcher.");
+                    System.Windows.Forms.Cursor.Position = cursor; Pump(35); Press(true);
+                    cursor.Offset(-90, 60); System.Windows.Forms.Cursor.Position = cursor; Pump(70); Press(false);
+                    check((Origin() - centered).Length > 35, "Dragging the grip with the mouse must move the window.");
+                    Pump(System.Windows.Forms.SystemInformation.DoubleClickTime + 40);
+                    check(WindowFromPoint(new NativePoint { X = cursor.X, Y = cursor.Y }) == own, "The grip must still be under the cursor.");
+                    Press(true); Press(false); Press(true); Press(false);
+                    check((Origin() - centered).Length <= 2, "Native mouse double-click must recenter the launcher.");
+                }
+                finally { if (down) Press(false); System.Windows.Forms.Cursor.Position = originalCursor; }
+            }
+        }
+        finally { main.DisposeLauncher(); main.Close(); }
+    }
     internal static void Run(Action<bool, string> check, bool startMenu, bool nativeTouch = false)
     {
         var main = new MainWindow(new Settings { UseBuiltInKeyboard = true }, _ => { });

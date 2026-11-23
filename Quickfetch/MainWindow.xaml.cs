@@ -55,6 +55,7 @@ public partial class MainWindow : Window
         Loc.SetLanguage(_settings.UiLanguage);
         _settings.UiLanguage = TextLocalization.Language;
         InitializeComponent();
+        InitializeWindowGrip();
         InitializeExtensionGesture();
         InitializeModes();
         InitializeFileColumns();
@@ -122,10 +123,9 @@ public partial class MainWindow : Window
         SetTouchKeyboard(tablet);
         if (!IsVisible)
         {
-            Left = SystemParameters.WorkArea.Left + (SystemParameters.WorkArea.Width - Width) / 2;
-            Top = SystemParameters.WorkArea.Top + (SystemParameters.WorkArea.Height - Height) / 2;
             PrepareOpenAnimation();
             Show();
+            RestoreWindowPlacement();
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, PlayOpenAnimation);
         }
         WindowState = WindowState.Normal;
@@ -431,16 +431,17 @@ public partial class MainWindow : Window
         if (revealKeyboard) Reveal(QuickKeyboard, 16);
         KeyboardToggle.ToolTip = _settings.UseBuiltInKeyboard ? Loc.T("展开或收起触屏键盘") : Loc.T("打开 Windows 系统触摸键盘");
         var center = Left + Width / 2;
+        var work = LauncherWorkArea();
         FilePreviewPanel.Visibility = _fileMode && !_urlMode && !_showingUrlHistory && (_settings.EnableFilePreview || Results.SelectedItems.Count > 1) ? Visibility.Visible : Visibility.Collapsed;
-        var targetWidth = Math.Min(_fileMode ? 784 + ((_settings.EnableFilePreview || Results.SelectedItems.Count > 1) && !_urlMode && !_showingUrlHistory ? 316 : 0) : 660, SystemParameters.WorkArea.Width - 24);
+        var targetWidth = Math.Min(_fileMode ? 784 + ((_settings.EnableFilePreview || Results.SelectedItems.Count > 1) && !_urlMode && !_showingUrlHistory ? 316 : 0) : 660, work.Width - 24);
         _modeTargetWidth = targetWidth;
         if (!(animateModeBounds && IsVisible && SystemParameters.ClientAreaAnimation))
         {
             Width = targetWidth;
-            if (IsVisible) Left = Math.Clamp(center - Width / 2, SystemParameters.WorkArea.Left + 12, SystemParameters.WorkArea.Right - Width - 12);
+            if (IsVisible) Left = Math.Clamp(center - Width / 2, work.Left, work.Right - Width);
         }
-        Height = Math.Min(builtInVisible ? 720 : 470, SystemParameters.WorkArea.Height - 24);
-        if (IsVisible) Top = Math.Clamp(Top, SystemParameters.WorkArea.Top + 12, SystemParameters.WorkArea.Bottom - Height - 12);
+        Height = Math.Min(builtInVisible ? 720 : 470, work.Height - 24);
+        if (IsVisible) Top = Math.Clamp(Top, work.Top, work.Bottom - Height);
         ScheduleBackdrop();
         ScheduleCaret();
         if (!_settings.UseBuiltInKeyboard && visible && !physicalKeyboard) RequestSystemKeyboard();
@@ -579,9 +580,15 @@ public partial class MainWindow : Window
         Results.ReleaseAllTouchCaptures(); ReleaseResultMouseCapture();
         _doubleTap.Reset();
         var foreground = GetForegroundWindow();
-        if (!(_restoringLauncherFocus && LauncherActivation.IsStartMenu(foreground)) && !_choosingFolder && _externalQuickActions == 0 && !_pinnedMenuOpen && !_pinDragging && !IsTouchKeyboardWindow(foreground)) Hide();
+        if (!(_restoringLauncherFocus && LauncherActivation.IsStartMenu(foreground)) && !_choosingFolder && _externalQuickActions == 0 && _quickFlyout == null && !_pinnedMenuOpen && !_pinDragging && !IsTouchKeyboardWindow(foreground)) Hide();
     }
-    private void Header_Drag(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed && e.OriginalSource is TextBlock) DragMove(); }
+    private void Header_Drag(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || e.OriginalSource is not TextBlock) return;
+        var before = PointToScreen(new Point());
+        DragMove();
+        if (before != PointToScreen(new Point())) RememberWindowPlacement();
+    }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
     private void OpenFolder_Click(object sender, RoutedEventArgs e) => OpenShortcutFolder();
     private void Settings_Click(object sender, RoutedEventArgs e)

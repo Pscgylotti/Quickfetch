@@ -31,7 +31,7 @@ public partial class MainWindow
         if (!GetDismissBounds(new WindowInteropHelper(this).Handle, out var bounds)) return;
         if (x >= bounds.Left && x < bounds.Right && y >= bounds.Top && y < bounds.Bottom) return;
         var target = DismissWindowFromPoint(new DismissPoint { X = x, Y = y });
-        if (IsTouchKeyboardWindow(target)) return;
+        if (IsTouchKeyboardWindow(target) || _quickFlyout is { } flyout && (flyout.Opening || flyout.Contains(target))) return;
         Hide();
     }
     private static bool IsTouchKeyboardWindow(IntPtr window)

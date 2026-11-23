@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
-using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -77,9 +76,9 @@ public partial class MainWindow
         CloseQuickToggles();
         ExtensionsPanel.Visibility = Visibility.Collapsed;
         SetToggled(ExtensionsButton, true);
-        var buttons = ExtensionEntries.Children.OfType<Button>().ToArray();
-        _wheel = new ExtensionWheel(buttons.Select(AutomationProperties.GetName).ToArray(),
-            (Brush)FindResource("TooltipSurface"), (Brush)FindResource("Ink"), (Brush)FindResource("Accent"), (Brush)FindResource("OnAccent"), (Brush)FindResource("Line"));
+        var icons = ExtensionEntries.Children.OfType<Button>().Select(button => (TextBlock)button.Tag).ToArray();
+        _wheel = new ExtensionWheel(icons, (Brush)FindResource("TooltipSurface"),
+            (Brush)FindResource("Accent"), (Brush)FindResource("OnAccent"), (Brush)FindResource("Line"));
         _radialPopup = new Popup { PlacementTarget = ExtensionsButton, Placement = PlacementMode.Custom,
             CustomPopupPlacementCallback = (popup, target, _) => [new CustomPopupPlacement(
                 new Point((target.Width - popup.Width) / 2, (target.Height - popup.Height) / 2), PopupPrimaryAxis.None)],
@@ -128,29 +127,27 @@ internal sealed class ExtensionWheel : FrameworkElement
 {
     internal const double Radius = 118;
     private const double Hole = 25;
-    private readonly string[] _labels;
-    private readonly Brush _surface, _ink, _accent, _onAccent, _line;
+    private readonly TextBlock[] _icons;
+    private readonly Brush _surface, _accent, _onAccent, _line;
     internal int Selected { get; private set; } = -1;
-    internal ExtensionWheel(string[] labels, Brush surface, Brush ink, Brush accent, Brush onAccent, Brush line)
+    internal ExtensionWheel(TextBlock[] icons, Brush surface, Brush accent, Brush onAccent, Brush line)
     {
-        _labels = labels; _surface = surface; _ink = ink; _accent = accent; _onAccent = onAccent; _line = line;
+        _icons = icons; _surface = surface; _accent = accent; _onAccent = onAccent; _line = line;
         Width = Height = Radius * 2;
     }
     internal void SelectAt(Point point)
     {
-        var x = point.X - Radius; var y = point.Y - Radius;
-        var distance = Math.Sqrt(x * x + y * y);
-        var sector = 2 * Math.PI / _labels.Length;
-        var next = distance < Hole || distance > Radius + 20 ? -1 :
-            (int)Math.Floor((Math.Atan2(y, x) + Math.PI / 2 + sector / 2 + Math.PI * 2) % (Math.PI * 2) / sector);
+        var offset = point - new Point(Radius, Radius);
+        var sector = Math.Tau / _icons.Length;
+        var next = offset.LengthSquared < Hole * Hole ? -1 :
+            (int)Math.Floor((Math.Atan2(offset.Y, offset.X) + Math.PI / 2 + sector / 2 + Math.Tau) % Math.Tau / sector);
         if (next != Selected) { Selected = next; InvalidateVisual(); }
     }
     private static Point At(double a, double r) => new(Radius + Math.Cos(a) * r, Radius + Math.Sin(a) * r);
     protected override void OnRender(DrawingContext dc)
     {
-        var span = Math.PI * 2 / _labels.Length;
-        string[] glyphs = ["Ω", "\uE722", "\uE896"];
-        for (int i = 0; i < _labels.Length; i++)
+        var span = Math.Tau / _icons.Length;
+        for (int i = 0; i < _icons.Length; i++)
         {
             var mid = -Math.PI / 2 + i * span;
             var a = mid - span / 2 + .015; var b = mid + span / 2 - .015;
@@ -163,15 +160,12 @@ internal sealed class ExtensionWheel : FrameworkElement
                 ctx.ArcTo(At(a, Hole), new Size(Hole, Hole), 0, false, SweepDirection.Counterclockwise, true, false);
             }
             dc.DrawGeometry(i == Selected ? _accent : _surface, new Pen(_line, 1), shape);
-            var pos = At(mid, 72);
-            DrawText(dc, glyphs[i], i == 0 ? "Segoe UI" : "Segoe Fluent Icons, Segoe MDL2 Assets", 21,
-                new Point(pos.X, pos.Y - 10), i == Selected ? _onAccent : _accent);
-            DrawText(dc, _labels[i], "Microsoft YaHei UI", 10, new Point(pos.X, pos.Y + 13), i == Selected ? _onAccent : _ink);
+            var center = At(mid, (Hole + Radius) / 2);
+            var source = _icons[i];
+            var typeface = new Typeface(source.FontFamily, source.FontStyle, source.FontWeight, source.FontStretch);
+            var icon = new FormattedText(source.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+                typeface, 26, i == Selected ? _onAccent : _accent, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            dc.DrawText(icon, new Point(center.X - icon.Width / 2, center.Y - icon.Height / 2));
         }
-    }
-    private void DrawText(DrawingContext dc, string text, string font, double size, Point center, Brush brush)
-    {
-        var label = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface(font), size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-        dc.DrawText(label, new Point(center.X - label.Width / 2, center.Y - label.Height / 2));
     }
 }

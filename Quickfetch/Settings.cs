@@ -5,8 +5,11 @@ using Microsoft.Win32;
 
 namespace Quickfetch;
 
+public sealed record LauncherPlacement(string Display, double Horizontal, double Vertical);
+
 public sealed class Settings
 {
+    public LauncherPlacement? WindowPlacement { get; set; }
     public string UiLanguage { get; set; } = "zh-CN";
     public System.Collections.Generic.Dictionary<string,string> TogglePluginPaths { get; set; } = new();
     public string CaptureFolder { get; set; } = "";

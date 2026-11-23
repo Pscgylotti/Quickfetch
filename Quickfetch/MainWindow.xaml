@@ -62,10 +62,16 @@
   </Window.Resources>
   <WindowChrome.WindowChrome><WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="8" UseAeroCaptionButtons="False"/></WindowChrome.WindowChrome>
   <Border x:Name="LauncherSurface" RenderTransformOrigin="0.5,0.4" Focusable="True" KeyboardNavigation.IsTabStop="False" CornerRadius="8" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+    <DockPanel>
+      <Border x:Name="WindowGrip" DockPanel.Dock="Top" Width="112" Height="28" HorizontalAlignment="Center"
+              Background="Transparent" Cursor="SizeAll" Stylus.IsPressAndHoldEnabled="False" Stylus.IsFlicksEnabled="False"
+              ToolTip="{local:Tr T99923227c45f}" AutomationProperties.Name="{local:Tr T99923227c45f}">
+        <Border x:Name="GripMark" Width="42" Height="4" CornerRadius="2" Opacity="0.65" Background="{DynamicResource Muted}"/>
+      </Border>
     <Grid x:Name="ModeLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-      <Border x:Name="PinnedRail" Width="52" Margin="8,12,0,12" CornerRadius="10" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+      <Border x:Name="PinnedRail" Width="52" Margin="8,4,0,12" CornerRadius="10" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
         <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel x:Name="PinnedItems" Margin="3,4"/></ScrollViewer>
-      </Border><Grid Grid.Column="1" Margin="16,8,16,10">
+      </Border><Grid Grid.Column="1" Margin="16,0,16,10">
       <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="26"/></Grid.RowDefinitions>
       <DockPanel Grid.Row="0" MouseLeftButtonDown="Header_Drag">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -198,19 +204,19 @@
               </Style>
             </StackPanel.Resources>
             <TextBlock Text="{local:Tr Td66f6f6acc36}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="12,7,12,4"/>
-            <Button x:Name="CharacterMapMenuItem" Click="CharacterMap_Click" AutomationProperties.Name="{local:Tr Ted55662a52fa}" AutomationProperties.AcceleratorKey="Alt + C">
+            <Button x:Name="CharacterMapMenuItem" Tag="{Binding ElementName=CharacterMapGlyph}" Click="CharacterMap_Click" AutomationProperties.Name="{local:Tr Ted55662a52fa}" AutomationProperties.AcceleratorKey="Alt + C">
               <DockPanel><TextBlock DockPanel.Dock="Right" Text="Alt + C" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
-                <TextBlock Text="Ω" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="CharacterMapGlyph" Text="Ω" FontFamily="Segoe UI" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
                 <TextBlock Text="{local:Tr Ted55662a52fa}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/></DockPanel>
             </Button>
-            <Button x:Name="CaptureMenuItem" Click="Capture_Click" AutomationProperties.Name="{local:Tr Tec72b3056ca6}" AutomationProperties.AcceleratorKey="Alt + S">
+            <Button x:Name="CaptureMenuItem" Tag="{Binding ElementName=CaptureGlyph}" Click="Capture_Click" AutomationProperties.Name="{local:Tr Tec72b3056ca6}" AutomationProperties.AcceleratorKey="Alt + S">
               <DockPanel><TextBlock DockPanel.Dock="Right" Text="Alt + S" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
-                <TextBlock Text="&#xE722;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="CaptureGlyph" Text="&#xE722;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
                 <TextBlock Text="{local:Tr Tec72b3056ca6}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/></DockPanel>
             </Button>
-            <Button x:Name="DownloadsButton" Click="Downloads_Click" AutomationProperties.Name="{local:Tr T47e07482256d}" AutomationProperties.AcceleratorKey="Alt + D">
+            <Button x:Name="DownloadsButton" Tag="{Binding ElementName=DownloadsGlyph}" Click="Downloads_Click" AutomationProperties.Name="{local:Tr T47e07482256d}" AutomationProperties.AcceleratorKey="Alt + D">
               <DockPanel><TextBlock DockPanel.Dock="Right" Text="Alt + D" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
-                <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="DownloadsGlyph" Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Width="32" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
                 <TextBlock Text="{local:Tr T47e07482256d}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/></DockPanel>
             </Button>
           </StackPanel>
@@ -233,5 +239,6 @@
       </ScrollViewer>
     </Border>
     </Grid>
+    </DockPanel>
   </Border>
 </Window>

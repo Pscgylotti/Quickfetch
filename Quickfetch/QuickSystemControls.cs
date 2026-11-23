@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Management;
@@ -16,15 +15,14 @@ using Windows.Networking.NetworkOperators;
 namespace Quickfetch;
 
 internal record ToggleReading(bool? On, bool Available = true, string? Note = null, string? Executable = null);
-internal record AudioChoice(string Id, string Name, bool Current);
 
 internal static class QuickSystemControls
 {
-    private const string Night = "SystemSettings_Display_BlueLight_AutomaticOnScheduleWithTime_ToggleSwitch";
     private const string Rotation = "SystemSettings_Display_IsRotationLocked_ToggleSwitch";
     private const string Airplane = "SystemSettings_Radio_IsAirplaneModeEnabled_SettingsApp_ToggleSwitch";
     private const string Hotspot = "SystemSettings_Connections_InternetSharingEnabled_ToggleSwitch";
-    private const string NightRecord = "windows.data.bluelightreduction.bluelightreductionstate";
+    private const string EnergySaver = "SystemSettings_PowerAndBattery_EnergySaverAlwaysOn_ToggleSwitch";
+    private const string EnergySaverSummary = "SystemSettings_PowerAndBattery_EnergySaver_ValueTextBlock";
 
     internal static async Task<ToggleReading> Read(string id)
     {
@@ -50,28 +48,29 @@ internal static class QuickSystemControls
             case "flight":
                 using (var key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\RadioManagement\SystemRadioState"))
                     return new(key?.GetValue("") is int flag ? flag != 0 : null);
-            case "night":
-                using (var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\default$" + NightRecord + "\\" + NightRecord))
-                    return new(key?.GetValue("Data") is byte[] data ? NightState(data) : null);
+            case "power":
+                return new(await EnergySaverStatus.Read().ConfigureAwait(false), true, Loc.IsEnglish ? "Energy saver" : "节能模式");
             case "rotation":
                 return GetAutoRotationState(out var state) ? new((state & 1) != 0, (state & 0xFC) == 0) : new(null, false);
             default: throw new ArgumentOutOfRangeException(nameof(id));
         }
     }
 
-    internal static bool? NightState(byte[] data)
-    {
-        ReadOnlySpan<byte> header = [0x43, 0x42, 1, 0];
-        if (!data.AsSpan().StartsWith(header)) return null;
-        var inner = data.AsSpan(header.Length);
-        var offset = inner.IndexOf(header);
-        if (offset < 0 || offset + header.Length >= inner.Length) return null;
-        var payload = inner[(offset + header.Length)..];
-        return payload[0] switch { 0x10 when payload.Length > 1 && payload[1] == 0 => true, 0 or 0xD0 or 0xC6 => false, _ => null };
-    }
-
     internal static async Task Set(string id, bool? desired, CancellationToken token)
     {
+        if (id == "power")
+        {
+            var current = await EnergySaverStatus.Read(token);
+            var target = desired ?? !current;
+            if (current == target) return;
+            await Task.Run(() => SetWindowsSwitch("batterysaver", EnergySaver, target, token), token);
+            for (int i = 0; i < 20; i++)
+            {
+                if (await EnergySaverStatus.Read(token) == target) return;
+                await Task.Delay(100, token);
+            }
+            throw new InvalidOperationException(Loc.IsEnglish ? "Windows is still controlling Energy saver automatically." : "Windows 仍在自动管理节能模式。");
+        }
         if (id is "wifi" or "bluetooth")
         {
             // RequestAccessAsync must begin on the UI thread.
@@ -102,12 +101,11 @@ internal static class QuickSystemControls
             }
             return;
         }
-        var (page, control) = id switch { "night" => ("display", Night), "rotation" => ("display", Rotation), "flight" => ("network-airplanemode", Airplane), _ => throw new ArgumentException(id) };
+        var (page, control) = id switch { "rotation" => ("display", Rotation), "flight" => ("network-airplanemode", Airplane), _ => throw new ArgumentException(id) };
         await Task.Run(() => SetWindowsSwitch(page, control, desired, token), token);
     }
 
     // Use the system's actual switch for settings without a public desktop setter.
-    // Never write to the private CloudStore binary or approximate airplane mode with separate radios.
     private static void SetWindowsSwitch(string page, string id, bool? desired, CancellationToken token)
     {
         OpenSettings("ms-settings:" + page);
@@ -126,6 +124,16 @@ internal static class QuickSystemControls
                     {
                         if (window.Current.ClassName != "ApplicationFrameWindow" && window.Current.ProcessId != process.Id) continue;
                         var element = window.FindFirst(TreeScope.Descendants, filter);
+                        if (element == null && id == EnergySaver)
+                        {
+                            var summary = window.FindFirst(TreeScope.Descendants, new AndCondition(
+                                new PropertyCondition(AutomationElement.ProcessIdProperty, process.Id),
+                                new PropertyCondition(AutomationElement.AutomationIdProperty, EnergySaverSummary)));
+                            var header = summary == null ? null : TreeWalker.RawViewWalker.GetParent(summary);
+                            if (header != null && header.TryGetCurrentPattern(ExpandCollapsePattern.Pattern, out var pattern) &&
+                                pattern is ExpandCollapsePattern section && section.Current.ExpandCollapseState == ExpandCollapseState.Collapsed)
+                                section.Expand();
+                        }
                         if (element == null || !element.TryGetCurrentPattern(TogglePattern.Pattern, out var raw)) continue;
                         if (!element.Current.IsEnabled) throw new InvalidOperationException("Windows has disabled this switch.");
                         var toggle = (TogglePattern)raw;
@@ -150,14 +158,6 @@ internal static class QuickSystemControls
 
     internal static async Task<string?> Details(string id)
     {
-        if (id == "bluetooth")
-        {
-            var selector = Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true);
-            var devices = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(selector);
-            return string.Join(Environment.NewLine, devices.Select(d => d.Name).Where(s => s.Length > 0).Distinct().Take(12));
-        }
-        if (id == "wifi")
-            return NetworkInformation.GetConnectionProfiles().FirstOrDefault(p => p.IsWlanConnectionProfile && p.GetNetworkConnectivityLevel() != NetworkConnectivityLevel.None)?.ProfileName;
         if (id == "hotspot" && NetworkInformation.GetInternetConnectionProfile() is { } network)
             return NetworkOperatorTetheringManager.CreateFromConnectionProfile(network).GetCurrentAccessPointConfiguration().Ssid;
         var state = await Read(id);
@@ -192,32 +192,5 @@ internal static class QuickSystemControls
         return (int)Math.Round(speaker.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
     }
 
-    internal static List<AudioChoice> AudioDevices(DataFlow flow)
-    {
-        using var audio = new MMDeviceEnumerator();
-        string? current = null;
-        try { using var endpoint = audio.GetDefaultAudioEndpoint(flow, Role.Multimedia); current = endpoint.ID; }
-        catch (COMException) { }
-        var result = new List<AudioChoice>();
-        foreach (var device in audio.EnumerateAudioEndPoints(flow, DeviceState.Active))
-        using (device) result.Add(new(device.ID, device.FriendlyName, device.ID == current));
-        return result;
-    }
-
-    internal static void SetDefaultAudio(string id)
-    {
-        var policy = (IPolicyConfig)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9"))!)!;
-        try { policy.SetDefaultEndpoint(id, Role.Console); policy.SetDefaultEndpoint(id, Role.Multimedia); }
-        finally { Marshal.ReleaseComObject(policy); }
-    }
-
     [DllImport("user32")] private static extern bool GetAutoRotationState(out uint state);
-    [ComImport, Guid("F8679F50-850A-41CF-9C72-430F290290C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IPolicyConfig
-    {
-        void GetMixFormat(); void GetDeviceFormat(); void ResetDeviceFormat(); void SetDeviceFormat();
-        void GetProcessingPeriod(); void SetProcessingPeriod(); void GetShareMode(); void SetShareMode();
-        void GetPropertyValue(); void SetPropertyValue();
-        void SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, Role role);
-    }
 }
